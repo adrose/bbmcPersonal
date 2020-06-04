@@ -18,7 +18,7 @@
 
 ## Load library(s)
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
-install_load("tidyverse", "reshape2", "gganimate", 'plotly')
+install_load("tidyverse", "reshape2", "gganimate", 'plotly', 'sjPlot')
 
 ## Create functions
 confusionMatrixLeft <- function(df, Right=FALSE, timeMax=FALSE){
@@ -111,7 +111,7 @@ confusionMatrixLeft <- function(df, Right=FALSE, timeMax=FALSE){
   ## Now return the vector of number of responses
   
   ## Now perpare a list with all of the output
-  return(out.list <- list(out.table=out.table, out.vals=out.vals, out.vec=out.vector, out.resp=df$noOfResposesStim))
+  return(out.list <- list(out.table=out.table, out.vals=out.vals, out.vec=out.vector, out.resp=df$noOfResposesStim, questionStim=out.stim))
 }
 
 ## Now create a function which will grab the time between stimuli and previous answer
@@ -138,8 +138,8 @@ timeForError <- function(df){
 }
 
 ## Load data
-in.path <- "/home/arosen/Documents/eegBehavioralData/ID_mod/"
-in.example <- "/home/arosen/Documents/eegBehavioralData/ID_mod/118-101_OutResponse.csv"
+in.path <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod/"
+in.example <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod/117-115_OutResponse.csv"
 in.data <- read.csv(in.example)
 
 ## Now run an example
@@ -181,7 +181,7 @@ for(i in 1:dim(out.check)[1]){
     write.csv(in.data.new, in.file, quote=F, row.names=F)
     print("Writing")
   }
-  cor.table <- confusionMatrixLeft(in.data, Right = right.flag, timeMax = TRUE)
+  cor.table <- confusionMatrixLeft(in.data, Right = TRUE, timeMax = TRUE)
   all.data[[i]] <- cor.table
   all.response.tmp <- melt(cor.table$out.table)
   all.response.tmp$id <- q
@@ -192,7 +192,7 @@ for(i in 1:dim(out.check)[1]){
   ## Now create a bool array with the correct incorrect questions
   out.bool <- rep(0, length(in.data.new$downTime))
   out.bool[cor.table$out.vec] <- 1
-  downTime.tmp <- cbind(q, in.data.new$downTime, out.bool, cor.table$out.resp)
+  downTime.tmp <- cbind(q, in.data.new$downTime, out.bool, cor.table$out.resp, cor.table$questionStim)
   downTime <- rbind(downTime, downTime.tmp)
 }
 ## Clean up the ID for all.vals
@@ -221,6 +221,19 @@ write.csv(to.write, "~/Desktop/downTimeIncorrectAnswersWithMultiple.csv", quote=
 ## Now without # of responses
 to.write <- summarySE(data = downTime[which(downTime$out.bool==0),], measurevar = "V2", groupvars = c("q"), na.rm=T)
 write.csv(to.write, "~/Desktop/downTimeIncorrectAnswers.csv", quote=F, row.names=F)
+
+## Now check for differences between correct and incorrect response times within subjects
+mem.mod <- lmerTest::lmer(V2 ~ out.bool + (1|q), data=downTime)
+## Plot our random effect
+sjPlot::plot_model(mem.mod, type='re', sort.est = T, grid=F)
+## Now explore a main effect of input stimuli
+mem.mod2 <- lmerTest::lmer(V2 ~ out.bool + V5+ (1|q), data=downTime)
+## Now change the name of the downTime variables for clarity
+names(downTime) <- c("id", "downTime", "Correct", "NumberofResponses", "Stimuli")
+mem.mod2 <- lmerTest::lmer(downTime ~ Correct * Stimuli+ (1|id), data=downTime)
+## Now write the average downtime by correct and emotional permutation
+out <- summarySE(data = downTime, groupvars = c("Stimuli", "Correct"), measurevar = "downTime", na.rm=T)
+write.csv(out, "outDownTimeStimuli.csv", quote=F, row.names=F)
 
 pdf("exploreHisto.pdf")
 ## Now z score some of these things
@@ -325,5 +338,3 @@ all.out <- merge(all.response.tw, all.vals.tw, by='id')
 ## Now remove all na columns
 all.out <- all.out[,-grep("NA", names(all.out))]
 write.csv(all.out, "behaviorData.csv", quote=F, row.names=F)
-
-## Now find the window between stimuli and next response
