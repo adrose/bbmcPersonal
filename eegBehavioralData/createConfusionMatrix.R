@@ -310,7 +310,7 @@ dev.off()
 ## Now figure some method to plot the confusion matrix
 all.response$id <- strSplitMatrixReturn(all.response$id, "_")[,1]
 table(all.response$out.resp)
-all.response <- all.response[-which(all.response$out.resp==0),]
+#all.response <- all.response[-which(all.response$out.resp==0),]
 all.response$out.resp <- as.character(all.response$out.resp)
 all.response$out.resp[is.na(all.response$out.resp)] <- "No Answer"
 all.response$out.resp <- factor(all.response$out.resp, levels = c("Crying", "Happy", "Neutral", "Unhappy", "No Answer"))
@@ -327,5 +327,5 @@ all.vals.tw <- recast(all.vals, id ~ variable + contrast, measure.var = "value")
 # Now merge and write em
 all.out <- merge(all.response.tw, all.vals.tw, by='id')
 ## Now remove all na columns
-all.out <- all.out[,-grep("NA", names(all.out))]
+#all.out <- all.out[,-grep("NA", names(all.out))]
 write.csv(all.out, "behaviorData.csv", quote=F, row.names=F)
