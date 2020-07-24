@@ -138,7 +138,7 @@ timeForError <- function(df){
 }
 
 ## Load data
-in.path <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod/"
+in.path <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod_rawFirst/"
 in.example <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod/118-101_OutResponse.csv"
 in.data <- read.csv(in.example)
 
@@ -328,4 +328,4 @@ all.vals.tw <- recast(all.vals, id ~ variable + contrast, measure.var = "value")
 all.out <- merge(all.response.tw, all.vals.tw, by='id')
 ## Now remove all na columns
 #all.out <- all.out[,-grep("NA", names(all.out))]
-write.csv(all.out, "behaviorData.csv", quote=F, row.names=F)
+write.csv(all.out, "behaviorData-RAW-FirstResponse.csv", quote=F, row.names=F)
