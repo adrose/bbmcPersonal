@@ -107,7 +107,6 @@ in.path <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/CARE_mod/"
 in.example <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/CARE_mod/117-114_OutResponse.csv"
 in.data <- read.csv(in.example)
 
-
 ## Now in a loop go through and find the response pattern for each emotion for each person
 all.id <- system(paste("ls", in.path), intern = TRUE)
 out.check <- NULL
@@ -121,9 +120,8 @@ for(q in all.id){
 out.check <- data.frame(out.check)
 out.check$X1 <-as.numeric(as.character(out.check$X1))
 out.check$X2 <-as.numeric(as.character(out.check$X2))
-out.check$Left <- "Yes"
-out.check$Left[which(out.check$X1 - out.check$X2 > 0)] <- "No"
-
+out.check$Left <- "No"
+out.check$Left[which(out.check$X1 - out.check$X2 > 0)] <- "Yes"
 
 ## Now load all of the data
 all.data <- list()
@@ -174,5 +172,53 @@ all.out$ID <- strSplitMatrixReturn(all.out$ID, "_")[,1]
 ## Now write the csv
 write.csv(all.out, "careData-RAW-FirstResponse.csv", quote=F, row.names=F)
 
-
 #### Of note - ID 117-114 appears to be wildly broken!!!
+
+## Now plot and explore these values
+# First plot the happy response counts
+pdf("careResponsePatterns.pdf")
+## Crying Response
+melt(all.out[,c("ID", "Crying_Yes", "Crying_No", "Crying_NA")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+## Crying speed
+melt(all.out[,c("ID", "Crying_Yes_mean", "Crying_No_mean")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+
+## Happy Response
+melt(all.out[,c("ID", "Happy_Yes", "Happy_No", "Happy_NA")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+## Happy speed
+melt(all.out[,c("ID", "Happy_Yes_mean", "Happy_No_mean")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+
+## Neutral Response
+melt(all.out[,c("ID", "Neutral_Yes", "Neutral_No", "Neutral_NA")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+## Neutral speed
+melt(all.out[,c("ID", "Neutral_Yes_mean", "Neutral_No_mean")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+
+## Unhappy Response
+melt(all.out[,c("ID", "Unhappy_Yes", "Unhappy_No", "Unhappy_NA")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+## Unhappy speed
+melt(all.out[,c("ID", "Unhappy_Yes_mean", "Unhappy_No_mean")], id.vars = "ID") %>% ggplot(., aes(x=value)) +
+  geom_histogram() +
+  facet_grid(.~variable, scales = "free") +
+  theme_bw()
+
+dev.off()
