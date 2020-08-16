@@ -74,7 +74,7 @@ for(i in id.vals){
       resp.given <- dcast(pic.data.to.use, formula = PictureDisplayed + participantID ~ order, value.var = c('ResponseGiven'))
       resp.time <- dcast(pic.data.to.use, formula = PictureDisplayed + participantID ~ order, value.var = 'responseTime')
       # Now merge these
-      row.out <- merge(resp.time, resp.given, by=c("PictureDisplayed", "participantID"), suffixes = c("_responseGiven", "_responseTime"))
+      row.out <- merge(resp.time, resp.given, by=c("PictureDisplayed", "participantID"), suffixes = c("_responseTime", "_responseGiven"))
       # Now make sure the out row is 1x10
       if(!identical(dim(row.out), c(1, 10))){
         #print("short")
@@ -98,5 +98,45 @@ for(i in id.vals){
   pb$tick()
 }
 
-## Now I need to go ahead and calaculate some ICCs
-# THe first will be within item
+## Now I want to go through and calculate internal consitency per person
+output.person.con <- NULL
+for(i in id.vals){
+  ## Isolate the individual
+  data.to.use <- all.out.wide[which(all.out.wide$participantID==i),]
+  ## Now convert the data to binary responses
+  columns.to.loop <- grep("Given", names(data.to.use))
+  data.to.calc <- matrix(NA, nrow = dim(data.to.use)[1], ncol = 4)
+  ## Now loop through
+  index <- 1
+  for(q in columns.to.loop){
+   c.index <- which(data.to.use[,q]==10)
+   data.to.calc[c.index,index] <- 0
+   c.index <- which(data.to.use[,q]==18)
+   data.to.calc[c.index,index] <- 0
+   index <- index + 1
+  }
+  index <- 1
+  for(q in columns.to.loop){
+    c.index <- which(data.to.use[,q]==12)
+    data.to.calc[c.index,index] <- 1
+    c.index <- which(data.to.use[,q]==24)
+    data.to.calc[c.index,index] <- 1
+    index <- index + 1
+  }
+  ## Now estimate the cronbach's alpha
+  alpha.value <- psych::alpha(data.to.calc)
+  alpha.value <- alpha.value$total[1]
+  # Now prepare the output row
+  out.row <- cbind(i, alpha.value)
+  output.person.con <- rbind(output.person.con, out.row)
+}
+
+## Now go through and clauclate the item veraiability
+question.vals <- names(table(all.out.wide$PictureDisplayed))
+## Change the items named: "UX,64" --> "UX,32"
+all.out.wide$PictureDisplayed[which(all.out.wide$PictureDisplayed=="UX,64")] <- "UX,32"
+question.vals <- names(table(all.out.wide$PictureDisplayed))[1:96]
+for(i in question.vals){
+  data.to.use <- all.out.wide[which(all.out.wide$PictureDisplayed==i),]
+  print(dim(data.to.use))
+}
