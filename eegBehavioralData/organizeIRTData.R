@@ -1,6 +1,6 @@
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
-install_load("reshape2", "progress")
+install_load("reshape2", "progress", "mirt", "psych")
 ## Run the bash script to organize the files as desired
 system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIRTData.sh")
 
@@ -56,6 +56,8 @@ all.out <- all.out[,-null.col]
 id.vals <- names(table(all.out$participantID))
 picture.vals <- names(table(all.out$PictureDisplayed))
 all.out.wide <- NULL
+real.all.wide <- NULL
+question.vals <- names(table(all.out.wide$PictureDisplayed))
 pb <- progress_bar$new(total = length(id.vals))
 for(i in id.vals){
   # Isolate the data of interest
@@ -64,6 +66,7 @@ for(i in id.vals){
   # First create the participant specific output
   participant.wide <- NULL
   index <- 1
+  irt.tmp <- i
   for(p in picture.vals){
     pic.data.to.use <- data.to.use[which(data.to.use$PictureDisplayed==p),]
     ## Now check to see if our dim is greater than 0
@@ -92,9 +95,15 @@ for(i in id.vals){
       }else{
         participant.wide <- merge(row.out, participant.wide, by=c("PictureDisplayed", "participantID"), all=T) 
       }
+      ## Now prepare the response given IRT data
+      row.out.irt <- row.out[, c("PictureDisplayed", "participantID", "1_responseGiven", "2_responseGiven", "3_responseGiven", "4_responseGiven")]
+      colnames(row.out.irt)[3:6] <- paste(colnames(row.out.irt)[3:6], row.out.irt$PictureDisplayed, sep='_')
+      row.out.irt <- row.out.irt[,3:6]
+      irt.tmp <- unlist(as.array(c(irt.tmp, row.out.irt)))
     }
   }
   all.out.wide <- rbind(all.out.wide, participant.wide)
+  real.all.wide <- rbind(real.all.wide, irt.tmp)
   pb$tick()
 }
 
@@ -140,3 +149,17 @@ for(i in question.vals){
   data.to.use <- all.out.wide[which(all.out.wide$PictureDisplayed==i),]
   print(dim(data.to.use))
 }
+
+
+## Now run the IRT? and see if it'll work
+real.all.wide[real.all.wide=="10"] <- 0
+real.all.wide[real.all.wide=="18"] <- 0
+real.all.wide[real.all.wide=="12"] <- 1
+real.all.wide[real.all.wide=="24"] <- 1
+real.all.wide[,2:385] <- apply(real.all.wide[,2:385], c(1,2), function(x) as.numeric(as.character(x)))
+for.irt <- apply(real.all.wide[,2:385], c(1,2), function(x) as.numeric(as.character(x)))
+mod.1 <- mirt(for.irt, 1, IRTpars=T)
+# Now print the coef
+out.mod.1 <- coef(mod.1)
+
+## Now we are going to go rhtough and grab the difficulty paramter for each item over time
