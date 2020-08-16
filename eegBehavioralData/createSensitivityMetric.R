@@ -173,7 +173,7 @@ all.out$ID <- strSplitMatrixReturn(all.out$ID, "_")[,1]
 write.csv(all.out, "careData-RAW-FirstResponse.csv", quote=F, row.names=F)
 
 #### Of note - ID 117-114 appears to be wildly broken!!!
-
+  
 ## Now plot and explore these values
 # First plot the happy response counts
 pdf("careResponsePatterns.pdf")
