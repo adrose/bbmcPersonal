@@ -133,7 +133,7 @@ for(i in id.vals){
     index <- index + 1
   }
   ## Now estimate the cronbach's alpha
-  alpha.value <- psych::alpha(data.to.calc)
+  alpha.value <- psych::alpha(data.to.calc, check.keys = T)
   alpha.value <- alpha.value$total[1]
   # Now prepare the output row
   out.row <- cbind(i, alpha.value)
@@ -145,9 +145,14 @@ question.vals <- names(table(all.out.wide$PictureDisplayed))
 ## Change the items named: "UX,64" --> "UX,32"
 all.out.wide$PictureDisplayed[which(all.out.wide$PictureDisplayed=="UX,64")] <- "UX,32"
 question.vals <- names(table(all.out.wide$PictureDisplayed))[1:96]
+output.con <- NULL
 for(i in question.vals){
   data.to.use <- all.out.wide[which(all.out.wide$PictureDisplayed==i),]
-  print(dim(data.to.use))
+  #print(dim(data.to.use))
+  alpha.value <- psych::alpha(apply(data.to.use[,c("1_responseGiven","2_responseGiven","3_responseGiven","4_responseGiven")], c(1,2), function(x) as.numeric(as.character(x))))
+  alpha.value <- alpha.value$total[1]
+  out.row <- cbind(i, alpha.value)
+  output.con <- rbind(output.con, out.row)
 }
 
 
@@ -163,3 +168,50 @@ mod.1 <- mirt(for.irt, 1, IRTpars=T)
 out.mod.1 <- coef(mod.1)
 
 ## Now we are going to go rhtough and grab the difficulty paramter for each item over time
+
+
+## Now go through and use the long version to run the IRT to get more stable difficulty estimates
+# I am going to collapse the real.all.wide and stack them via the order of presentation
+real.all.wide <- as.data.frame(real.all.wide)
+real.all.wide.1 <- real.all.wide[,c(1, grep("1_", names(real.all.wide)))]
+real.all.wide.2 <- real.all.wide[,c(1, grep("2_", names(real.all.wide)))]
+real.all.wide.3 <- real.all.wide[,c(1, grep("3_", names(real.all.wide)))]
+real.all.wide.4 <- real.all.wide[,c(1, grep("4_", names(real.all.wide)))]
+
+names(real.all.wide.1) <- gsub(names(real.all.wide.1), pattern = '1_', replacement = '')
+names(real.all.wide.2) <- gsub(names(real.all.wide.2), pattern = '2_', replacement = '')
+names(real.all.wide.3) <- gsub(names(real.all.wide.3), pattern = '3_', replacement = '')
+names(real.all.wide.4) <- gsub(names(real.all.wide.4), pattern = '4_', replacement = '')
+
+## Now combine these and run IRT
+for.irt <- rbind(real.all.wide.1, real.all.wide.2, real.all.wide.3, real.all.wide.4)
+for.irt[,2:97] <- apply(for.irt[,2:97], c(1,2), function(x) as.numeric(as.character(x)))
+
+## Now remove any fully empty rows
+index <- which(apply(for.irt[,2:97], 1, function(x) sum(is.na(x)))==96)
+for.irt <- for.irt[-index,]
+
+## I am going to go through and see which response is provided more frequently for the crying faces - this will be the 1 variable or the yes care flag
+# This array gives us the values of yes response codes
+yes.vals <- apply(for.irt[,c(2:25)], 1, function(x) names(which(table(x)==max(table(x)))))
+no.vals <- apply(for.irt[,c(2:25)], 1, function(x) names(which(table(x)==min(table(x)))))
+for(i in 1:length(yes.vals)){
+  ## Go thorugh each row and change the yes to the yes val and the no to the no vals
+  yes.val <- yes.vals[i]
+  if(length(yes.val[[1]])>1){yes.val <- yes.val[[1]][1]}
+  no.val <- no.vals[i]
+  if(length(no.val[[1]])>1){no.val <- no.val[[1]][2]}
+  yes.index <- which(for.irt[i, 2:97]==yes.val) +1
+  no.index <-  which(for.irt[i, 2:97]==no.val)+1
+  for.irt[i,yes.index] <- 0
+  for.irt[i,no.index] <- 1
+  ## Now print the dim of the responses
+  print(dim(table(t(for.irt[i,2:97]))))
+}
+
+## Now convert the stragglers.. not sure why I have them
+for.irt[,2:97] <- apply(for.irt[,2:97], 2, function(x) ifelse(x > 1, 0, x))
+
+
+## Now run IRT
+mod.2 <- mirt(for.irt[,-c(1)], 1, IRTpars=T)
