@@ -1,6 +1,6 @@
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
-install_load("reshape2", "progress", "mirt", "psych")
+install_load("reshape2", "progress", "mirt", "psych", "ggplot2")
 ## Run the bash script to organize the files as desired
 system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIRTData.sh")
 
@@ -156,17 +156,17 @@ for(i in question.vals){
 }
 
 
-## Now run the IRT? and see if it'll work
-real.all.wide[real.all.wide=="10"] <- 0
-real.all.wide[real.all.wide=="18"] <- 0
-real.all.wide[real.all.wide=="12"] <- 1
-real.all.wide[real.all.wide=="24"] <- 1
-real.all.wide[,2:385] <- apply(real.all.wide[,2:385], c(1,2), function(x) as.numeric(as.character(x)))
-for.irt <- apply(real.all.wide[,2:385], c(1,2), function(x) as.numeric(as.character(x)))
-mod.1 <- mirt(for.irt, 1, IRTpars=T)
-# Now print the coef
-out.mod.1 <- coef(mod.1)
-
+### Now run the IRT? and see if it'll work
+#real.all.wide[real.all.wide=="10"] <- 0
+#real.all.wide[real.all.wide=="18"] <- 0
+#real.all.wide[real.all.wide=="12"] <- 1
+#real.all.wide[real.all.wide=="24"] <- 1
+#real.all.wide[,2:385] <- apply(real.all.wide[,2:385], c(1,2), function(x) as.numeric(as.character(x)))
+#for.irt <- apply(real.all.wide[,2:385], c(1,2), function(x) as.numeric(as.character(x)))
+#mod.1 <- mirt(for.irt, 1, IRTpars=T)
+## Now print the coef
+#out.mod.1 <- coef(mod.1)
+#
 ## Now we are going to go rhtough and grab the difficulty paramter for each item over time
 
 
@@ -215,3 +215,36 @@ for.irt[,2:97] <- apply(for.irt[,2:97], 2, function(x) ifelse(x > 1, 0, x))
 
 ## Now run IRT
 mod.2 <- mirt(for.irt[,-c(1)], 1, IRTpars=T)
+vals <- coef(mod.2)
+output=NULL
+for(i in 1:96) {
+  output=rbind(output,
+               matrix(vals[[i]],ncol=4,byrow=TRUE))
+  rownames(output)[i] <- names(vals[i])
+}
+## Now get the difficulty values
+output <- cbind(output, rownames(output))
+output <- data.frame(output)
+colnames(output)[2] <- "Difficulty"
+output$Emotion <- "Happy"
+output$Emotion[grep("_U", output$X5)] <- "Unhappy"
+output$Emotion[grep("_C", output$X5)] <- "Cry"
+output$Emotion[grep("_N", output$X5)] <- "Neutral"
+## Now plot these
+output$Difficulty <- as.numeric(as.character(output$Difficulty))
+tmp.plot <- ggplot(output, aes(x=Difficulty)) +
+  geom_histogram() +
+  facet_grid(Emotion ~.) +
+  theme_light()
+
+colnames(output)[1] <- "Discrimination"
+output$Discrimination <- as.numeric(as.character(output$Discrimination))
+tmp.plot2 <- ggplot(output, aes(x=Discrimination)) +
+  geom_histogram() +
+  facet_grid(Emotion ~.) +
+  theme_light()
+
+## Now plot the consistency
+tmp.plot3 <- ggplot(output.person.con, aes(x=raw_alpha)) +
+  geom_histogram() +
+  theme_light()
