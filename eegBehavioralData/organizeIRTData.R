@@ -1,6 +1,7 @@
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 install_load("reshape2", "progress", "mirt", "psych", "ggplot2")
+
 ## Run the bash script to organize the files as desired
 system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIRTData.sh")
 
@@ -132,13 +133,30 @@ for(i in id.vals){
     data.to.calc[c.index,index] <- 1
     index <- index + 1
   }
-  ## Now estimate the cronbach's alpha
-  alpha.value <- psych::alpha(data.to.calc, check.keys = T)
-  alpha.value <- alpha.value$total[1]
+  ## Now estimate the cronbach's alpha for each emotion
+  alpha.value           <- try(psych::alpha(data.to.calc, check.keys = T)$total[1])
+  unh.alpha             <- try(psych::alpha(data.to.calc[grep("^U", data.to.use$PictureDisplayed),], check.keys = T, use='complete.obs', impute = 'mean')$total[1])
+  cry.alpha             <- try(psych::alpha(data.to.calc[grep("^C", data.to.use$PictureDisplayed),], check.keys = T, use='complete.obs', impute = 'mean')$total[1])
+  hap.alpha             <- try(psych::alpha(data.to.calc[grep("^H", data.to.use$PictureDisplayed),], check.keys = T, use='complete.obs', impute = 'mean')$total[1])
+  neu.alpha             <- try(psych::alpha(data.to.calc[grep("^N", data.to.use$PictureDisplayed),], check.keys = T, use='complete.obs', impute = 'mean')$total[1])
+
+  ## Now check to see if it is a numeric, and if not add a flag
+  alpha.value <- ifelse(is.na(as.numeric(alpha.value)), NA, as.numeric(alpha.value))
+  unh.alpha <- ifelse(is.na(as.numeric(unh.alpha)), NA, as.numeric(unh.alpha))
+  cry.alpha <- ifelse(is.na(as.numeric(cry.alpha)), NA, as.numeric(cry.alpha))
+  hap.alpha <- ifelse(is.na(as.numeric(hap.alpha)), NA, as.numeric(hap.alpha))
+  neu.alpha <- ifelse(is.na(as.numeric(neu.alpha)), NA, as.numeric(neu.alpha))
+  
   # Now prepare the output row
-  out.row <- cbind(i, alpha.value)
+  out.row <- cbind(i, alpha.value[1], unh.alpha[1], cry.alpha[1], hap.alpha[1], neu.alpha[1])
+  colnames(out.row) <- c("record_id", "overall", "unhappy", "crying", "happy", "neutral")
   output.person.con <- rbind(output.person.con, out.row)
+  colnames(output.person.con) <- c("record_id", "overall", "unhappy", "crying", "happy", "neutral")
 }
+## It is kind of interesting -- the emotion specific values are very different than the overall???
+## I wonder why this is??
+## Also looks like they don't average out - the emtoin specific are consistently lower than the overall
+output.person.con[,2:6] <- apply(output.person.con[,2:6], c(1,2), as.numeric)
 
 ## Now go through and clauclate the item veraiability
 question.vals <- names(table(all.out.wide$PictureDisplayed))
@@ -230,6 +248,8 @@ output$Emotion <- "Happy"
 output$Emotion[grep("_U", output$X5)] <- "Unhappy"
 output$Emotion[grep("_C", output$X5)] <- "Cry"
 output$Emotion[grep("_N", output$X5)] <- "Neutral"
+## Write the data
+write.csv(output, "itemDifficultyCare.csv", quote=F, row.names=F)
 ## Now plot these
 output$Difficulty <- as.numeric(as.character(output$Difficulty))
 tmp.plot <- ggplot(output, aes(x=Difficulty)) +
@@ -245,6 +265,15 @@ tmp.plot2 <- ggplot(output, aes(x=Discrimination)) +
   theme_light()
 
 ## Now plot the consistency
-tmp.plot3 <- ggplot(output.person.con, aes(x=raw_alpha)) +
+output.person.con <- as.data.frame(output.person.con)
+output.person.con[,2:6] <- apply(output.person.con[,2:6], c(1,2), function(x) as.numeric(as.character(x)))
+tmp.plot3 <- ggplot(output.person.con, aes(x=overall)) +
   geom_histogram() +
+  theme_light()
+
+## Now plot emotion specific ish
+output.person.con.2 <- melt(output.person.con, id.vars = 'record_id')
+tmp.plot4 <- ggplot(output.person.con.2, aes(x=abs(value))) +
+  geom_histogram() +
+  facet_grid(variable ~.) +
   theme_light()
