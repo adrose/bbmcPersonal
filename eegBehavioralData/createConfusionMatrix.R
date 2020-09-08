@@ -138,7 +138,7 @@ timeForError <- function(df){
 }
 
 ## Load data
-in.path <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod_rawFirst/"
+in.path <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod/"
 in.example <- "/home/arosen/Documents/bbmcPersonal/eegBehavioralData/ID_mod/118-101_OutResponse.csv"
 in.data <- read.csv(in.example)
 
@@ -216,11 +216,11 @@ q <- downTime[which(downTime$out.bool==0),] %>% ggplot(., aes(x = V2, frame=q)) 
 
 to.write <- summarySE(data = downTime[which(downTime$out.bool==0),], measurevar = "V2", groupvars = c("q", "V4"), na.rm=T)
 to.write <- to.write[-(which(to.write$V4==0 & to.write$N==0)),]
-write.csv(to.write, "~/Desktop/downTimeIncorrectAnswersWithMultiple.csv", quote=F, row.names=F)
+write.csv(to.write, "downTimeIncorrectAnswersWithMultiple.csv", quote=F, row.names=F)
 
 ## Now without # of responses
 to.write <- summarySE(data = downTime[which(downTime$out.bool==0),], measurevar = "V2", groupvars = c("q"), na.rm=T)
-write.csv(to.write, "~/Desktop/downTimeIncorrectAnswers.csv", quote=F, row.names=F)
+write.csv(to.write, "downTimeIncorrectAnswers.csv", quote=F, row.names=F)
 
 ## Now check for differences between correct and incorrect response times within subjects
 mem.mod <- lmerTest::lmer(V2 ~ out.bool + (1|q), data=downTime)
