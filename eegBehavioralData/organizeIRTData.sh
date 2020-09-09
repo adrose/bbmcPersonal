@@ -1,4 +1,4 @@
-for i in `ls /home/arosen/Documents/bbmcPersonal/eegBehavioralData/careFace/care/*log` ; do
+for i in `ls /home/arosen/Documents/bbmcPersonal/eegBehavioralData/careFace/Care/*log` ; do
 	echo $i
 	# Isolate the subject id
 	isoString=`echo $i |rev  | cut -f 1 -d / | rev | cut -f 1 -d _`
