@@ -163,6 +163,9 @@ out.check$V3 <- as.numeric(as.character(out.check$V3))
 out.check$Guess <- "Right"
 out.check$Guess[which(out.check$V2 - out.check$V3 > 0)] <- "Left"
 
+## Now write the out.check
+write.csv(out.check, "leftRightValues.csv", quote=F, row.names=F)
+
 ## Now re run this with the guess as the input direction
 all.data <- list()
 all.response <- NULL
