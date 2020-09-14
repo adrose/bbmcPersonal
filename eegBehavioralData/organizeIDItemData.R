@@ -1,9 +1,18 @@
+## Clean everything
+rm(list=ls())
+
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 install_load("reshape2", "progress", "mirt", "psych", "ggplot2")
 
 ## Run the bash script to organize the files as desired
 system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIDItemData.sh")
+
+## Declare any functions
+binary.flip <- function (x) {
+  x * -1 + 1
+}
+
 
 ## This is going to have to be done in a loop
 all.files.pic <- system("ls ~/Documents/bbmcPersonal/eegBehavioralData/careFace/idMod/pic*", intern = T)
@@ -187,6 +196,34 @@ for(i in id.vals){
   ## Now attach this to the new output
   all.out.wide2 <- rbind(all.out.wide2, data.to.use)
 }
+
+## Now do the real.all.wide
+real.all.wide2 <- NULL
+real.all.wide <- as.data.frame(real.all.wide)
+for(i in id.vals){
+  ## Isolate the individual
+  data.to.use <- real.all.wide[which(real.all.wide[,1]==i),]
+  if(dim(data.to.use)[1]==0){next}
+  ## answer values
+  mod.vals <- direction.vals[which(direction.vals$record_id==i),]
+  ## Now go through each of the emotions and change each of the response values appropriatly
+  orig.vals <- c(18, 20, 22, 24)
+  for(W in orig.vals){
+    # Find the emotion to use
+    new.val <- colnames(mod.vals)[which(mod.vals==W)]
+    # Now find all of the indices
+    orig.indices <- which(data.to.use==W)
+    if(length(orig.indices)==0){
+      print(paste("Participtant:", i, "Missing:", W,";", new.val, sep = " "))
+      next
+    }
+    ## Now change the values to the new value
+    data.to.use[,orig.indices] <- new.val
+  }
+  ## Now attach this to the new output
+  real.all.wide2 <- rbind(real.all.wide2, data.to.use)
+}
+
 ## Now I can check to see if both the reaction time & response are NA --
 ## If they are not then I can go back and add the response depending on missing response values
 ## Thats going to be for a later time though
@@ -261,6 +298,89 @@ write.csv(for.lmer, "responseTimeQuestion.csv", quote=F, row.names=F)
 ## Now check for endurance effects
 tmp.2 <- lmerTest::lmer(responseTime~ timeShown + (1|participantID), data=for.lmer)
 
+## Now play with the IRT models here
+# first orgainze the data
+real.all.wide <- as.data.frame(real.all.wide2)
+real.all.wide.1 <- real.all.wide[,c(1, grep("1_", names(real.all.wide)))]
+real.all.wide.2 <- real.all.wide[,c(1, grep("2_", names(real.all.wide)))]
+real.all.wide.3 <- real.all.wide[,c(1, grep("3_", names(real.all.wide)))]
+real.all.wide.4 <- real.all.wide[,c(1, grep("4_", names(real.all.wide)))]
+
+names(real.all.wide.1) <- gsub(names(real.all.wide.1), pattern = '1_', replacement = '')
+names(real.all.wide.2) <- gsub(names(real.all.wide.2), pattern = '2_', replacement = '')
+names(real.all.wide.3) <- gsub(names(real.all.wide.3), pattern = '3_', replacement = '')
+names(real.all.wide.4) <- gsub(names(real.all.wide.4), pattern = '4_', replacement = '')
+
+## Now combine these and run IRT
+for.irt <- rbind(real.all.wide.1, real.all.wide.2, real.all.wide.3, real.all.wide.4)
+# fix the factor levels
+for.irt[,2:97] <- apply(for.irt[,2:97], 2, function(x) factor(x, levels=c("happy", "neutral", "unhappy", "crying")))
+for.irt2 <- for.irt
+## Now go through and change all of these characters into numerics
+# Cry == 1; Unhappy == 2; Neutral ==3; Happy == 4
+new.val <- 1
+for(i in c("crying", "unhappy", "neutral", "happy")){
+  ## Grab the indicies
+  index.vals <- which(for.irt2==i)
+  index.vals <- matrix(rc.ind(for.irt2, index.vals), byrow=F, ncol=2)
+  for(L in 1:dim(index.vals)[1]){
+    for.irt2[index.vals[L,1], index.vals[L,2]] <- new.val
+  }
+  new.val <- new.val + 1
+}
+for.irt2[,2:97] <- apply(for.irt2[,2:97], 2, as.numeric)
+## Now train the model
+mod.1 <- mirt(data=for.irt2[,2:97], itemtype = 'nominal', SE=T, model=1)
+plot(mod.1, type='trace', which.items=c(1:96))
+plot(mod.1, type='infotrace', which.items=c(1:96))
+
+## Now do a binary () correct vs incorrect) IRT model
+for.irt3 <- matrix(NA, ncol = 96, nrow = dim(for.irt)[1])
+# I need to go through and find the correct string for each column and then identify the correct responses within each cell
+for(i in 2:97){
+  string.index <- for.irt[,i]
+  irt_three_col <- i -1
+  ## First grab the correct index
+  # Grab the character from the colname
+  char.val <- tolower(substr(strSplitMatrixReturn(colnames(for.irt[2]), "_")[,2][1], 1, 1))
+  if(char.val == 'c') cor.index <- which(string.index=="crying")
+  if(char.val == 'n') cor.index <- which(string.index=="neutral")
+  if(char.val == 'u') cor.index <- which(string.index=="unhappy")
+  if(char.val == 'h') cor.index <- which(string.index=="happy")
+  ## Now change the values
+  for.irt3[which(!is.na(for.irt[,i])),irt_three_col] <- 0
+  for.irt3[cor.index,irt_three_col] <- 1
+}
+for.irt3 <- as.data.frame(for.irt3)
+## Now run the IRT with the binary data
+#mod.2 <- mirt(for.irt3, 1, SE=T)
+#extract.mirt(mod.2, "BIC") ## 12803.46
+mod.2 <- mirt(for.irt3, 2, SE=T)
+extract.mirt(mod.2, "BIC") ## 12608.97
+#mod.2 <- mirt(for.irt3, 3, SE=T)
+#extract.mirt(mod.2, "BIC") ## 12955.42
+
+
+plot(mod.2, type='trace', which.items=c(1:96))
+plot(mod.2, type='infotrace', which.items=c(1:96))
+
+## Now calc some ICC for the factor scores
+icc.data <- cbind(as.character(for.irt$V1), fscores(mod.2))
+# Now break it down into 1 - 4 episodes
+icc.data.1 <- as.data.frame(icc.data[1:61,])
+icc.data.2 <- as.data.frame(icc.data[62:122,])
+icc.data.3 <- as.data.frame(icc.data[123:184,])
+icc.data.4 <- as.data.frame(icc.data[185:244,])
+## Now merge em
+icc.data <- merge(icc.data.1, icc.data.2, by='V1')
+icc.data <- merge(icc.data, icc.data.3, by="V1")
+icc.data <- merge(icc.data, icc.data.4, by="V1")
+colnames(icc.data) <- c("record_id", 'fOnePredOne', "fTwoPredOne", "fOnePredTwo", "fTwoPredTwo", "fOnePredThree", "fTwoPredThree", "fOnePredFour", "fTwoPredFour")
+icc.data[,2:9] <- apply(icc.data[,2:9], 2, function(x) as.numeric(as.character(x)))
+
+## Now do the ICC for factor one
+psych::ICC(icc.data[,c(2,4,6,8)]) # pretty decent!
+psych::ICC(icc.data[,c(3,5,7,9)]) # less decent but acceptable
 
 ## Now plot some of these values
 output.person.con <- as.data.frame(output.person.con)
@@ -270,3 +390,8 @@ tmp.plot4 <- ggplot(output.person.con.2, aes(x=abs(value))) +
   geom_histogram() +
   facet_grid(variable ~.) +
   theme_light()
+
+
+## Now write the data
+write.csv(output.person.con, "./consistencyDataID.csv", quote=F, row.names=F)
+write.csv(icc.data, "./idFactorScores.csv", quote=F, row.names=F)

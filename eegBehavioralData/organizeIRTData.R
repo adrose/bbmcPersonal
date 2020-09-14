@@ -1,6 +1,14 @@
+## Clean everything
+rm(list=ls())
+
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 install_load("reshape2", "progress", "mirt", "psych", "ggplot2")
+
+## Declare any functions
+binary.flip <- function (x) {
+  x * -1 + 1
+}
 
 ## Run the bash script to organize the files as desired
 system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIRTData.sh")
@@ -164,14 +172,14 @@ question.vals <- names(table(all.out.wide$PictureDisplayed))
 all.out.wide$PictureDisplayed[which(all.out.wide$PictureDisplayed=="UX,64")] <- "UX,32"
 question.vals <- names(table(all.out.wide$PictureDisplayed))[1:96]
 output.con <- NULL
-for(i in question.vals){
-  data.to.use <- all.out.wide[which(all.out.wide$PictureDisplayed==i),]
-  #print(dim(data.to.use))
-  alpha.value <- psych::alpha(apply(data.to.use[,c("1_responseGiven","2_responseGiven","3_responseGiven","4_responseGiven")], c(1,2), function(x) as.numeric(as.character(x))))
-  alpha.value <- alpha.value$total[1]
-  out.row <- cbind(i, alpha.value)
-  output.con <- rbind(output.con, out.row)
-}
+#for(i in question.vals){
+#  data.to.use <- all.out.wide[which(all.out.wide$PictureDisplayed==i),]
+#  #print(dim(data.to.use))
+#  alpha.value <- psych::alpha(apply(data.to.use[,c("1_responseGiven","2_responseGiven","3_responseGiven","4_responseGiven")], c(1,2), function(x) as.numeric(as.character(x))))
+#  alpha.value <- alpha.value$total[1]
+#  out.row <- cbind(i, alpha.value)
+#  output.con <- rbind(output.con, out.row)
+#}
 
 
 ### Now run the IRT? and see if it'll work
@@ -229,10 +237,40 @@ for(i in 1:length(yes.vals)){
 
 ## Now convert the stragglers.. not sure why I have them
 for.irt[,2:97] <- apply(for.irt[,2:97], 2, function(x) ifelse(x > 1, 0, x))
+for.irt[,2:97] <- binary.flip(for.irt[,2:97])
+## Calc ICC
 
 
 ## Now run IRT
-mod.2 <- mirt(for.irt[,-c(1)], 1, IRTpars=T)
+mod.2 <- mirt(for.irt[,c(2:97)], 1, IRTpars=T)
+mod.2.unhappy <- mirt(for.irt[,c(74:97)], 1, IRTpars=T)
+mod.2.crying <-  mirt(for.irt[,c(2:25)], 1, IRTpars=T)
+mod.2.neutral <-  mirt(for.irt[,c(50:73)], 1, IRTpars=T)
+mod.2.happy <-  mirt(for.irt[,c(26:49)], 1, IRTpars=T)
+
+## Now run a 2 param model
+mod.3 <- mirt(for.irt[,c(2:97)], 2, IRTpars=T)
+
+## Now calc some ICC for the factor scores
+icc.data <- cbind(as.character(for.irt$V1), fscores(mod.3))
+# Now break it down into 1 - 4 episodes
+icc.data.1 <- as.data.frame(icc.data[1:61,])
+icc.data.2 <- as.data.frame(icc.data[62:122,])
+icc.data.3 <- as.data.frame(icc.data[123:184,])
+icc.data.4 <- as.data.frame(icc.data[185:244,])
+## Now merge em
+icc.data <- merge(icc.data.1, icc.data.2, by='V1')
+icc.data <- merge(icc.data, icc.data.3, by="V1")
+icc.data <- merge(icc.data, icc.data.4, by="V1")
+colnames(icc.data) <- c("record_id", 'fOnePredOne', "fTwoPredOne", "fOnePredTwo", "fTwoPredTwo", "fOnePredThree", "fTwoPredThree", "fOnePredFour", "fTwoPredFour")
+icc.data[,2:9] <- apply(icc.data[,2:9], 2, function(x) as.numeric(as.character(x)))
+
+## Now do the ICC for factor one
+psych::ICC(icc.data[,c(2,4,6,8)]) # pretty decent!
+psych::ICC(icc.data[,c(3,5,7,9)]) # less decent but acceptable
+
+
+
 vals <- coef(mod.2)
 output=NULL
 for(i in 1:96) {
@@ -248,6 +286,21 @@ output$Emotion <- "Happy"
 output$Emotion[grep("_U", output$X5)] <- "Unhappy"
 output$Emotion[grep("_C", output$X5)] <- "Cry"
 output$Emotion[grep("_N", output$X5)] <- "Neutral"
+
+## Now plot the IRT characteristics
+plot(mod.2, type='trace', which.items=c(1:96))
+plot(mod.2, type='infotrace', which.items=c(1:96))
+plot(mod.2, type='info')
+plot(mod.2, type='SE')
+plot(mod.2.neutral, type='trace', which.items=c(1:24))
+plot(mod.2.happy, type='trace', which.items=c(1:24))
+plot(mod.2.crying, type='trace', which.items=c(1:24))
+plot(mod.2.unhappy, type='trace', which.items=c(1:24))
+
+## Now explore the dimenionslaity of these models following methods of:
+# https://doi.org/10.3389/feduc.2019.00045
+
+
 ## Write the data
 write.csv(output, "itemDifficultyCare.csv", quote=F, row.names=F)
 ## Now plot these
@@ -277,3 +330,7 @@ tmp.plot4 <- ggplot(output.person.con.2, aes(x=abs(value))) +
   geom_histogram() +
   facet_grid(variable ~.) +
   theme_light()
+
+## Now write the data
+write.csv(output.person.con, "./consistencyDataCARE.csv", quote=F, row.names=F)
+write.csv(icc.data, "./careFactorScores.csv", quote=F, row.names=F)
