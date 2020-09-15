@@ -3,7 +3,7 @@ rm(list=ls())
 
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
-install_load("reshape2", "progress", "mirt", "psych", "ggplot2")
+install_load("reshape2", "progress", "mirt", "psych", "ggplot2", "polycor")
 
 ## Run the bash script to organize the files as desired
 system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIDItemData.sh")
@@ -298,6 +298,9 @@ write.csv(for.lmer, "responseTimeQuestion.csv", quote=F, row.names=F)
 ## Now check for endurance effects
 tmp.2 <- lmerTest::lmer(responseTime~ timeShown + (1|participantID), data=for.lmer)
 
+## Now look at correlation amongst the response times
+head(all.out.wide)
+
 ## Now play with the IRT models here
 # first orgainze the data
 real.all.wide <- as.data.frame(real.all.wide2)
@@ -330,7 +333,7 @@ for(i in c("crying", "unhappy", "neutral", "happy")){
 }
 for.irt2[,2:97] <- apply(for.irt2[,2:97], 2, as.numeric)
 ## Now train the model
-mod.1 <- mirt(data=for.irt2[,2:97], itemtype = 'nominal', SE=T, model=1)
+mod.1 <- mirt(data=for.irt2[,2:97], itemtype = 'nominal', SE=T, model=2)
 plot(mod.1, type='trace', which.items=c(1:96))
 plot(mod.1, type='infotrace', which.items=c(1:96))
 
@@ -360,12 +363,19 @@ extract.mirt(mod.2, "BIC") ## 12608.97
 #mod.2 <- mirt(for.irt3, 3, SE=T)
 #extract.mirt(mod.2, "BIC") ## 12955.42
 
+## Now try a FA approach
+for.irt3 <- as.data.frame(apply(for.irt3, 2, factor))
+colnames(for.irt3) <- colnames(for.irt)[2:97]
+cor.mat <- polycor::hetcor(for.irt3)
+fa.2 <- fa(r = cor.mat$cor, n.obs = nrow(for.irt3), rotate = "varimax") ## FA suggests a 2 factor solution is the most optimal
+## Now plot the scree plot
 
-plot(mod.2, type='trace', which.items=c(1:96))
-plot(mod.2, type='infotrace', which.items=c(1:96))
+
+#plot(mod.2, type='trace', which.items=c(1:96))
+#plot(mod.2, type='infotrace', which.items=c(1:96))
 
 ## Now calc some ICC for the factor scores
-icc.data <- cbind(as.character(for.irt$V1), fscores(mod.2))
+icc.data <- cbind(as.character(for.irt$V1), fscores(mod.1))
 # Now break it down into 1 - 4 episodes
 icc.data.1 <- as.data.frame(icc.data[1:61,])
 icc.data.2 <- as.data.frame(icc.data[62:122,])

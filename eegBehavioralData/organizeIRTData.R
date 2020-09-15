@@ -3,7 +3,7 @@ rm(list=ls())
 
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
-install_load("reshape2", "progress", "mirt", "psych", "ggplot2")
+install_load("reshape2", "progress", "mirt", "psych", "ggplot2", "polycor")
 
 ## Declare any functions
 binary.flip <- function (x) {
@@ -217,6 +217,7 @@ for.irt[,2:97] <- apply(for.irt[,2:97], c(1,2), function(x) as.numeric(as.charac
 index <- which(apply(for.irt[,2:97], 1, function(x) sum(is.na(x)))==96)
 for.irt <- for.irt[-index,]
 
+
 ## I am going to go through and see which response is provided more frequently for the crying faces - this will be the 1 variable or the yes care flag
 # This array gives us the values of yes response codes
 yes.vals <- apply(for.irt[,c(2:25)], 1, function(x) names(which(table(x)==max(table(x)))))
@@ -250,6 +251,14 @@ mod.2.happy <-  mirt(for.irt[,c(26:49)], 1, IRTpars=T)
 
 ## Now run a 2 param model
 mod.3 <- mirt(for.irt[,c(2:97)], 2, IRTpars=T)
+
+## Now try a FA approach
+for.irt3 <- as.data.frame(apply(for.irt[,2:97], 2, factor))
+colnames(for.irt3) <- colnames(for.irt)[2:97]
+cor.mat <- polycor::hetcor(for.irt3)
+fa.2 <- fa(r = cor.mat$cor, n.obs = nrow(for.irt3), rotate = "varimax", nfactors = 2) ## FA suggests a 2 factor solution is the most optimal
+## Now plot the scree plot
+
 
 ## Now calc some ICC for the factor scores
 icc.data <- cbind(as.character(for.irt$V1), fscores(mod.3))
