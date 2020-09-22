@@ -45,7 +45,7 @@ binary.flip <- function (x) {
 #       rt.max <- max(as.numeric(as.character(all.data[which(all.data$V2==w),"V6.y"])))
 #       row.index <- which(as.numeric(as.character(all.data[which(all.data$V2==w),"V6.y"]))==rt.max)
 #       row.to.vom <- which(all.data$V2==w)[-row.index]
-#       rows.to.lose <- c(rows.to.lose, row.to.vom) 
+#       rows.to.lose <- c(rows.to.lose, row.to.vom)
 #     }
 #     all.data <- all.data[-rows.to.lose,]
 #   }
@@ -104,7 +104,7 @@ binary.flip <- function (x) {
 #       if(index ==1){
 #         participant.wide <- rbind(participant.wide, row.out)
 #       }else{
-#         participant.wide <- merge(row.out, participant.wide, by=c("PictureDisplayed", "participantID"), all=T) 
+#         participant.wide <- merge(row.out, participant.wide, by=c("PictureDisplayed", "participantID"), all=T)
 #       }
 #       ## Now prepare the response given IRT data
 #       row.out.irt <- row.out[, c("PictureDisplayed", "participantID", "1_responseGiven", "2_responseGiven", "3_responseGiven", "4_responseGiven")]
@@ -121,7 +121,7 @@ binary.flip <- function (x) {
 #   all.out.wide <- rbind(all.out.wide, participant.wide)
 #   real.all.wide <- rbind(real.all.wide, irt.tmp)
 #   real.all.wide.rt <- rbind(real.all.wide.rt, irt.tmp2)
-#   
+# 
 #   ## Now find the best estimate for the emotion values
 #   # First collapse the emotions into the four possible emotions
 #   data.to.use$emotion <- "unhappy"
@@ -153,11 +153,11 @@ binary.flip <- function (x) {
 # ## Here if the value is right the emotions will be:
 # # happy == 18 ; neutral == 20 ; unhappy == 22 ; crying == 24
 # ## if emtoins are left then:
-# # happy == 24 ; unhappy == 20 ; neutral == 22 ; crying == 18 
+# # happy == 24 ; unhappy == 20 ; neutral == 22 ; crying == 18
 # direction.vals <- read.csv('./leftRightValues.csv')
 # direction.vals$record_id <- strSplitMatrixReturn(direction.vals$V1, "_")[,1]
 # direction.vals <- merge(direction.vals, out.best.guesses, all=T)
-# ### Looks like I am missing data for 118-81 and 118-103 from the original 
+# ### Looks like I am missing data for 118-81 and 118-103 from the original
 # ### Looks like I am issing data for 118-62 from the new
 # 
 # ## Now create new datasets using the best guesses as the item answers
@@ -171,7 +171,7 @@ binary.flip <- function (x) {
 # direction.vals$happy <- 18
 # direction.vals$happy[direction.vals$Guess=="Left"] <- 24
 # 
-# ## Now change the 
+# ## Now change the
 # 
 # 
 # ## Go through and make the propoer changes
@@ -240,12 +240,12 @@ binary.flip <- function (x) {
 # ## Make the variables factors so we can compute the alpha for them
 # all.out.wide2[,7] <- factor(all.out.wide2[,7], c("crying", "unhappy", "neutral", "happy"))
 # all.out.wide2[,8] <- factor(all.out.wide2[,8], c("crying", "unhappy", "neutral", "happy"))
+# ## Add in a checkpoint here!!!
 # all.out.wide2[,9] <- factor(all.out.wide2[,9], c("crying", "unhappy", "neutral", "happy"))
 # all.out.wide2[,10] <- factor(all.out.wide2[,10], c("crying", "unhappy", "neutral", "happy"))
 # 
-# ## Add in a checkpoint here!!!
-# save.image(file = "./eegBehavioralData/IRTIDData.RData")
-load.image("./eegBehavioralData/IRTCareData.RData")
+#save.image(file = "./eegBehavioralData/IRTIDData.RData")
+load("./eegBehavioralData/IRTIDData.RData")
 
 
 ## Now I want to go through and calculate internal consistency per person
@@ -401,7 +401,7 @@ for.irt.rt[,2:97] <- apply(for.irt.rt[,2:97], c(1,2), function(x) as.numeric(as.
 for.irt3 <- as.data.frame(apply(for.irt3, 2, factor))
 colnames(for.irt3) <- colnames(for.irt)[2:97]
 cor.mat <- polycor::hetcor(for.irt3)
-fa.2 <- fa(r = cor.mat$cor, n.obs = nrow(for.irt3), rotate = "varimax") ## FA suggests a 2 factor solution is the most optimal
+fa.2 <- fa(r = cor.mat$cor, n.obs = nrow(for.irt3), rotate = "varimax", nfactors = 2) ## FA suggests a 2 factor solution is the most optimal
 ## Now plot the scree plot
 
 
@@ -444,7 +444,6 @@ tmp.plot4 <- ggplot(output.person.con.2, aes(x=abs(value))) +
   geom_histogram() +
   facet_grid(variable ~.) +
   theme_light()
-
 
 ## Now write the data
 write.csv(output.person.con, "./consistencyDataID.csv", quote=F, row.names=F)

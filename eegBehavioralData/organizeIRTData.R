@@ -127,7 +127,7 @@ binary.flip <- function (x) {
 
 ## Add in a checkpoint here!!!
 #save.image(file = "./eegBehavioralData/IRTCareData.RData")
-load.image("./eegBehavioralData/IRTCareData.RData")
+load("./eegBehavioralData/IRTCareData.RData")
 
 ## Now I want to go through and calculate internal consitency per person
 output.person.con <- NULL
@@ -277,7 +277,7 @@ mod.2.neutral <-  mirt(for.irt[,c(50:73)], 1, IRTpars=T)
 mod.2.happy <-  mirt(for.irt[,c(26:49)], 1, IRTpars=T)
 
 ## Now run a 2 param model
-mod.3 <- mirt(for.irt[,c(2:97)], 2, IRTpars=T)
+mod.3 <- mirt(for.irt[,c(2:97)], 3, IRTpars=T)
 
 ## Now try a FA approach
 for.irt3 <- as.data.frame(apply(for.irt[,2:97], 2, factor))
@@ -314,11 +314,11 @@ psych::ICC(icc.data[,c(3,5,7,9)]) # less decent but acceptable
 
 
 
-vals <- coef(mod.2)
+vals <- coef(mod.3)
 output=NULL
 for(i in 1:96) {
   output=rbind(output,
-               matrix(vals[[i]],ncol=4,byrow=TRUE))
+               matrix(vals[[i]],ncol=5,byrow=TRUE))
   rownames(output)[i] <- names(vals[i])
 }
 ## Now get the difficulty values
@@ -326,9 +326,9 @@ output <- cbind(output, rownames(output))
 output <- data.frame(output)
 colnames(output)[2] <- "Difficulty"
 output$Emotion <- "Happy"
-output$Emotion[grep("_U", output$X5)] <- "Unhappy"
-output$Emotion[grep("_C", output$X5)] <- "Cry"
-output$Emotion[grep("_N", output$X5)] <- "Neutral"
+output$Emotion[grep("_U", output$X6)] <- "Unhappy"
+output$Emotion[grep("_C", output$X6)] <- "Cry"
+output$Emotion[grep("_N", output$X6)] <- "Neutral"
 
 ## Now plot the IRT characteristics
 plot(mod.2, type='trace', which.items=c(1:96))
