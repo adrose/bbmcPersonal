@@ -162,18 +162,20 @@ direction.vals <- merge(direction.vals, out.best.guesses, all=T)
 
 ## Now create new datasets using the best guesses as the item answers
 ## Now go through and change to the correct emotion triggers
+## Manually flip the 117-114 patterns!
+direction.vals$Guess[which(direction.vals$record_id=="117-114")] <- "Left"
 direction.vals$crying <- 24
-direction.vals$crying[direction.vals$Guess=="Left"] <- 18
+direction.vals$crying[direction.vals$Guess=="Right"] <- 18
 direction.vals$unhappy <- 22
-direction.vals$unhappy[direction.vals$Guess=="Left"] <- 20
+direction.vals$unhappy[direction.vals$Guess=="Right"] <- 20
 direction.vals$neutral <- 20
-direction.vals$neutral[direction.vals$Guess=="Left"] <- 22
+direction.vals$neutral[direction.vals$Guess=="Right"] <- 22
 direction.vals$happy <- 18
-direction.vals$happy[direction.vals$Guess=="Left"] <- 24
+direction.vals$happy[direction.vals$Guess=="Right"] <- 24
 
 
 
-## Go through and make the propoer changes
+## Go through and make the proper changes
 # Adding a tmp id vals as we are missing some data somewhere along this line
 id.vals <- direction.vals$record_id[complete.cases(direction.vals)]
 all.out.wide2 <- NULL
@@ -183,7 +185,7 @@ for(i in id.vals){
   if(dim(data.to.use)[1]==0){next}
   ## answer values
   mod.vals <- direction.vals[which(direction.vals$record_id==i),]
-  ## Now go through each of the emotions and change each of the response values appropriatly
+  ## Now go through each of the emotions and change each of the response values appropriately
   orig.vals <- c(18, 20, 22, 24)
   for(W in orig.vals){
     # Find the emotion to use
@@ -213,8 +215,9 @@ all.out.wide2$emotion[grep("^N", all.out.wide2$PictureDisplayed)] <- "neutral"
 
 ## Now double check the scores by participant
 crying.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,1]
-## THis exploration suggested ALL values were flipped... except for participant 117-114?
-
+happy.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,2]
+neutral.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,3]
+unhappy.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,4]
 
 ## Now do the real.all.wide
 real.all.wide2 <- NULL
@@ -423,14 +426,23 @@ for.irt.rt[,2:97] <- apply(for.irt.rt[,2:97], c(1,2), function(x) as.numeric(as.
 ## Now try a FA approach
 for.irt3 <- as.data.frame(apply(for.irt3, 2, factor))
 colnames(for.irt3) <- colnames(for.irt)[2:97]
-cor.mat <- polycor::hetcor(for.irt3)
+cor.mat <- polycor::hetcor(for.irt3, use=c("pairwise.complete.obs"))
 tmp.dat <- cor.mat$cor
 colnames(tmp.dat) <- gsub(colnames(tmp.dat), pattern = "responseGiven_", replacement = "")
 rownames(tmp.dat) <- gsub(rownames(tmp.dat), pattern = "responseGiven_", replacement = "")
+## Now correct the na values
+na.index <- matrix(rc.ind(tmp.dat, which(is.na(tmp.dat))), byrow=F, ncol=2)
+for(i in 1:dim(na.index)[1]){
+  x.val <- na.index[i,1]
+  y.val <- na.index[i,2]
+  ## Now get the variable names
+  x.val.char <- rownames(tmp.dat)[x.val]
+  y.val.char <- colnames(tmp.dat)[y.val]
+  ## Now compute the correlation
+  tmp.dat[x.val,y.val] <- polycor::polychor(for.irt3[,x.val], for.irt3[,y.val])
+}
 corrplot(tmp.dat)
-fa.2 <- fa(r = cor.mat$cor, n.obs = nrow(for.irt3), rotate = "varimax", nfactors = 2) ## FA suggests a 2 factor solution is the most optimal
-## Now plot the scree plot
-
+fa.2 <- fa(r = tmp.dat, n.obs = nrow(for.irt3), rotate = "varimax", nfactors = 2) ## FA suggests a 2 factor solution is the most optimal
 
 ## Now run a fa on the rt data
 fa.3 <- fa(r = for.irt.rt[,2:97], rotate='varimax', nfactors=6)
@@ -456,12 +468,12 @@ icc.data.4 <- as.data.frame(icc.data[185:244,])
 icc.data <- merge(icc.data.1, icc.data.2, by='V1')
 icc.data <- merge(icc.data, icc.data.3, by="V1")
 icc.data <- merge(icc.data, icc.data.4, by="V1")
-colnames(icc.data) <- c("record_id", 'fOnePredOne', "fTwoPredOne", "fOnePredTwo", "fTwoPredTwo", "fOnePredThree", "fTwoPredThree", "fOnePredFour", "fTwoPredFour")
-icc.data[,2:9] <- apply(icc.data[,2:9], 2, function(x) as.numeric(as.character(x)))
+#colnames(icc.data) <- c("record_id", 'fOnePredOne', "fTwoPredOne", "fOnePredTwo", "fTwoPredTwo", "fOnePredThree", "fTwoPredThree", "fOnePredFour", "fTwoPredFour")
+icc.data[,2:5] <- apply(icc.data[,2:5], 2, function(x) as.numeric(as.character(x)))
 
 ## Now do the ICC for factor one
-psych::ICC(icc.data[,c(2,4,6,8)]) # pretty decent!
-psych::ICC(icc.data[,c(3,5,7,9)]) # less decent but acceptable
+psych::ICC(icc.data[,c(2,3,4,5)]) # pretty decent!
+#psych::ICC(icc.data[,c(3,5,7,9)]) # less decent but acceptable
 
 ## Now plot some of these values
 output.person.con <- as.data.frame(output.person.con)
