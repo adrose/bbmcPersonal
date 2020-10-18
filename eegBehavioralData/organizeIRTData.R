@@ -3,7 +3,7 @@ rm(list=ls())
 
 ## Test script to organize data for IRT analysis using care task faces
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
-install_load("reshape2", "progress", "mirt", "psych", "ggplot2", "polycor")
+install_load("reshape2", "progress", "mirt", "psych", "ggplot2", "polycor", "corrplot")
 
 ## Declare any functions
 binary.flip <- function (x) {
@@ -179,7 +179,7 @@ for(i in id.vals){
 ## Also looks like they don't average out - the emtoin specific are consistently lower than the overall
 output.person.con[,2:6] <- apply(output.person.con[,2:6], c(1,2), as.numeric)
 
-## Now go through and clauclate the item veraiability
+## Now go through and calculate the item variability
 question.vals <- names(table(all.out.wide$PictureDisplayed))
 ## Change the items named: "UX,64" --> "UX,32"
 all.out.wide$PictureDisplayed[which(all.out.wide$PictureDisplayed=="UX,64")] <- "UX,32"
@@ -251,6 +251,7 @@ for.irt <- for.irt[-index,]
 # This array gives us the values of yes response codes
 yes.vals <- apply(for.irt[,c(2:25)], 1, function(x) names(which(table(x)==max(table(x)))))
 no.vals <- apply(for.irt[,c(2:25)], 1, function(x) names(which(table(x)==min(table(x)))))
+
 for(i in 1:length(yes.vals)){
   ## Go thorugh each row and change the yes to the yes val and the no to the no vals
   yes.val <- yes.vals[i]
@@ -277,12 +278,18 @@ mod.2.neutral <-  mirt(for.irt[,c(50:73)], 1, IRTpars=T)
 mod.2.happy <-  mirt(for.irt[,c(26:49)], 1, IRTpars=T)
 
 ## Now run a 2 param model
-mod.3 <- mirt(for.irt[,c(2:97)], 3, IRTpars=T)
+mod.3 <- mirt(for.irt[,c(2:97)], 2, IRTpars=T, itemtype = '2PL')
+mod.32 <- mirt(for.irt[,c(2:97)], 1, IRTpars=T, itemtype = '2PL')
+
 
 ## Now try a FA approach
 for.irt3 <- as.data.frame(apply(for.irt[,2:97], 2, factor))
 colnames(for.irt3) <- colnames(for.irt)[2:97]
 cor.mat <- polycor::hetcor(for.irt3)
+tmp.dat <- cor.mat$cor
+colnames(tmp.dat) <- gsub(colnames(tmp.dat), pattern = "responseGiven_", replacement = "")
+rownames(tmp.dat) <- gsub(rownames(tmp.dat), pattern = "responseGiven_", replacement = "")
+corrplot(tmp.dat)
 fa.2 <- fa(r = cor.mat$cor, n.obs = nrow(for.irt3), rotate = "varimax", nfactors = 2) ## FA suggests a 2 factor solution is the most optimal
 ## Now plot the scree plot
 
