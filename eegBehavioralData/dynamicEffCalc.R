@@ -134,8 +134,6 @@ load("./eegBehavioralData/IRTIDData.RData")
 load("./fname.gz")
 ds_eegPred <- out.data[[9]]
 
-## Check for the 
-
 # first orgainze the data
 real.all.wide <- as.data.frame(real.all.wide2)
 real.all.wide.1 <- real.all.wide[,c(1, grep("1_", names(real.all.wide)))]
@@ -195,16 +193,18 @@ plot(mod.11, type='trace')
 mod.13 <- mirt(for.irt3[,49:96], 1, SE=T, itemtype='2PL')
 plot(mod.13, type='trace')
 
-
 ## Now isolate the discrimination for these items
 high.Inten.Values <- coef(mod.11, IRTpars=T, simplify=T, as.data.frame=F)$items
 low.Inten.Values <- coef(mod.13, IRTpars=T, simplify=T, as.data.frame=F)$items
+
+## Now try a bifactor IRT model
+b.model <- bfactor(for.irt3, c(rep(1, 48), rep(2, 48)))
 
 
 ## Now find the items to remove
 # I am going to start with discrimination values less than 1
 # The majority of these come from the low I items
-bad.items <- names(c(which(abs(low.Inten.Values[,"a"]) < 1), which(abs(high.Inten.Values[,"a"]) < 1)))
+bad.items <- names(c(which(abs(low.Inten.Values[,"a"]) < 1), which(abs(high.Inten.Values[,"a"]) < .5)))
 
 ## Now go back and recalc the total number of correct responses while removing these items
 # First find all of the columns to remove
@@ -273,9 +273,26 @@ mod.one <- lm(as.numeric(as.character(percent.crying)) ~ ace_score * dose_hv_vis
 mod.two <- lm(as.numeric(as.character(percent.happy)) ~ ace_score * dose_hv_visit_count,   data=data.iso)
 mod.thr <- lm(as.numeric(as.character(percent.neutral)) ~ ace_score * dose_hv_visit_count, data=data.iso)
 mod.fou <- lm(as.numeric(as.character(percent.unhappy)) ~ ace_score * dose_hv_visit_count, data=data.iso)
-  
-## Now get the reaction time values
-recalc.rt.time <- as.data.frame(real.all.wide.rt)
+## Looks like this only reduces the signifiance of these findings although I am not sure if that is the best way to pursue this analysis...
 
+## Now I want to explore using each and every question as an outcome running a logistic mem with cor vs incor as the outcome and basic predictors
+lm.data <- merge(ds_eegPred, calc.vals.cor, by.x="record_id",by.y="V1", all=T)
+id.vars <- c("record_id", "ace_score", "dose_hv_visit_count", "income_h4")
+vars.of.int <- colnames(calc.vals.cor)[-c(1)]
+data.iso <- lm.data[,c(id.vars, vars.of.int)]
+x <- reshape2::melt(data.iso, id.vars = id.vars)
+x$value <- as.numeric(x$value)
 
+## Add the other variables
+x$round <- strSplitMatrixReturn(x$variable, "_")[,1]
+x$question <- strSplitMatrixReturn(x$variable, "_")[,3]
+x$Emotion <- "Happy"
+x$Emotion[grep("_U", x$variable)] <- "Unhappy"
+x$Emotion[grep("_C", x$variable)] <- "Cry"
+x$Emotion[grep("_N", x$variable)] <- "Neutral"
+
+## Now train some models
+mod.continous.2 <- lme4::glmer(value ~ (ace_score+dose_hv_visit_count+round+Emotion)^4 + (1|record_id), data=x, family = 'binomial')
+mod.continous.2 <- glm(value ~ (ace_score+dose_hv_visit_count+round+Emotion)^4 , data=x, family = 'binomial')
+mod.continous.2 <- glm(value ~ (ace_score+dose_hv_visit_count+round+Emotion)^2 , data=x, family = 'binomial')
 
