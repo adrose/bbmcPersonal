@@ -421,6 +421,7 @@ for.irt.rt[,2:97] <- apply(for.irt.rt[,2:97], c(1,2), function(x) as.numeric(as.
 
 
 ## Now try a FA approach
+for.irt.mixed <- for.irt3
 for.irt3 <- as.data.frame(apply(for.irt3, 2, factor))
 colnames(for.irt3) <- colnames(for.irt)[2:97]
 cor.mat <- polycor::hetcor(for.irt3, use=c("pairwise.complete.obs"))
@@ -498,19 +499,45 @@ ds_eegPred <- out.data[[9]]
 ## see help here: https://rdrr.io/cran/mirt/man/mixedmirt.html
 
 # Prepare the data
+for.irt3 <- for.irt.mixed
 for.irt3$record_id <- for.irt2$V1
+# Fix broken ID values
+for.irt3 <- for.irt3 %>% mutate(record_id = as.character(record_id)) %>% mutate(record_id = if_else(record_id %in% "117-115", "118-64", record_id))
 for.irt.mixed <- merge(for.irt3, ds_eegPred)
 
 ## Prepare multiple cores
 mirtCluster(spec = 4)
 
 ## Delcare the model
-#mod.mixed <- mixedmirt(for.irt.mixed[,2:97], covdata = for.irt.mixed[,c("record_id", "ace_score")], model=1, fixed=~ace_score + record_id, itemtype = "2PL")
 # This model takes far too long to run; I will try at a later date; but I am goin got try an emotion specific model
-mod.mixed.cry1 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "ace_score")], model=1, fixed=~ace_score, itemtype = "2PL")
-mod.mixed.cry2 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count")], model=1, fixed=~dose_hv_visit_count, itemtype = "2PL")
-mod.mixed.cry3 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "ace_score")], model=1, fixed=~dose_hv_visit_count*ace_score, itemtype = "2PL")
-
+mod.mixed.cry1 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "ace_score")], model=1, fixed=~ace_score,  random=~1|record_id,itemtype = "2PL")
+mod.mixed.cry2 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count")], model=1, fixed=~dose_hv_visit_count,  random=~1|record_id,itemtype = "2PL")
+# Dose is a highly sig effect!
+mod.mixed.cry3 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "ace_score")], model=1, fixed=~dose_hv_visit_count*ace_score, random=~1|record_id, itemtype = "2PL")
+# Interaction is crazy sig!? --> not with the random effect for individual =/
 
 ## Now try some eeg outcome
-mod.mixed.cry4 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCarefront")], model=1, fixed=~P2crymaxCarefront, itemtype = "2PL")
+mod.mixed.cry4 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCarefront")], model=1, fixed=~P2crymaxCarefront, random=~1|record_id,itemtype = "2PL")
+mod.mixed.cry5 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCarepost")], model=1, fixed=~P2crymaxCarepost, random=~1|record_id,itemtype = "2PL")
+mod.mixed.cry6 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCareLatfront")], model=1, fixed=~P2crymaxCareLatfront, random=~1|record_id,itemtype = "2PL")
+mod.mixed.cry7 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCareLatpost")], model=1, fixed=~P2crymaxCareLatpost, random=~1|record_id,itemtype = "2PL")
+mod.mixed.cry8 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCarefront", "P2crymaxCareLatfront")], model=1, fixed=~P2crymaxCarefront*P2crymaxCareLatfront, random=~1|record_id,itemtype = "2PL")
+# Interactions are very sig
+mod.mixed.cry9 <- mixedmirt(for.irt.mixed[,2:25], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCarepost", "P2crymaxCareLatpost")], model=1, fixed=~P2crymaxCarepost*P2crymaxCareLatpost, random=~1|record_id,itemtype = "2PL")
+# Interactions are even more sig in the post!
+
+
+## Do the happy questions here
+mod.mixed.hap1 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "ace_score")], model=1, fixed=~ace_score,  random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap2 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count")], model=1, fixed=~dose_hv_visit_count,  random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap3 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "ace_score")], model=1, fixed=~dose_hv_visit_count*ace_score, random=~1|record_id, itemtype = "2PL")
+
+## Now try some eeg outcome
+mod.mixed.hap4 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCarefront")], model=1, fixed=~P2happymaxCarefront, random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap5 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCarepost")], model=1, fixed=~P2happymaxCarepost, random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap6 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCareLatfront")], model=1, fixed=~P2happymaxCareLatfront, random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap7 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCareLatpost")], model=1, fixed=~P2happymaxCareLatpost, random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap8 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCarefront", "P2happymaxCareLatfront")], model=1, fixed=~P2happymaxCarefront*P2happymaxCareLatfront, random=~1|record_id,itemtype = "2PL")
+mod.mixed.hap9 <- mixedmirt(for.irt.mixed[,26:49], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCarepost", "P2happymaxCareLatpost")], model=1, fixed=~P2happymaxCarepost*P2happymaxCareLatpost, random=~1|record_id,itemtype = "2PL")
+
+
