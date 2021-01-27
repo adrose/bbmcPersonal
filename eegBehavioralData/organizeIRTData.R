@@ -384,3 +384,25 @@ tmp.plot4 <- ggplot(output.person.con.2, aes(x=abs(value))) +
 ## Now write the data
 write.csv(output.person.con, "./consistencyDataCARE.csv", quote=F, row.names=F)
 write.csv(icc.data, "./careFactorScores.csv", quote=F, row.names=F)
+
+## Now perform the mixed mod analyses
+#load covars
+load("./fname.gz")
+ds_eegPred <- out.data[[9]]
+
+## Now merge the data
+library(tidyverse)
+source('~/adroseHelperScripts/R/afgrHelpFunc.R')
+for.irt$record_id <- for.irt$V1
+# Fix broken ID values
+for.irt <- for.irt %>% mutate(record_id = as.character(record_id)) %>% mutate(record_id = if_else(record_id %in% "117-115", "118-64", record_id))
+for.irt.mixed <- merge(for.irt, ds_eegPred, all=T)
+
+## RM empty response patterns
+for.irt.mixed <- for.irt.mixed[-which(rowSums(is.na(for.irt.mixed[,3:26]))==24),]
+
+
+mod.mixed.cry1 <- mixedmirt(for.irt.mixed[,3:26], covdata = for.irt.mixed[,c("record_id", "ace_score")], model=1, fixed=~ace_score,  random=~1|record_id,itemtype = "2PL", technical = list(removeEmptyRows=TRUE))
+mod.mixed.cry2 <- mixedmirt(for.irt.mixed[,3:26], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count")], model=1, fixed=~dose_hv_visit_count,  random=~1|record_id,itemtype = "2PL")
+# Dose is a highly sig effect!
+mod.mixed.cry3 <- mixedmirt(for.irt.mixed[,3:26], covdata = for.irt.mixed[,c("record_id", "dose_hv_visit_count", "ace_score")], model=1, fixed=~dose_hv_visit_count*ace_score, random=~1|record_id, itemtype = "2PL")
