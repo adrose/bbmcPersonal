@@ -13,252 +13,253 @@ binary.flip <- function (x) {
   x * -1 + 1
 }
 
-# # ## This is going to have to be done in a loop
-# all.files.pic <- system("ls ~/Documents/bbmcPersonal/eegBehavioralData/IDFace/idMod/pic*", intern = T)
-# ## Now go through this in a loop and merge em
-# all.out <- NULL
-# for(i in all.files.pic){
-#   ## First grab the id
-#   tmp <- strSplitMatrixReturn(charactersToSplit = i, splitCharacter = '/')[,9]
-#   ## Now isolate the id
-#   p1 <- strSplitMatrixReturn(charactersToSplit = tmp, splitCharacter = 'c')[,2]
-#   p2 <- strSplitMatrixReturn(charactersToSplit = p1, splitCharacter = '\\.')[,1]
-#   print(p2)
-#   ## Now decalre the files
-#   file.1 <- paste("~/Documents/bbmcPersonal/eegBehavioralData/IDFace/idMod/pic", p2,".csv", sep='')
-#   file.2 <- paste("~/Documents/bbmcPersonal/eegBehavioralData/IDFace/idMod/resp", p2,".csv", sep='')
-#   in.file.1 <- read.csv(file.1, header=F, sep='\t')
-#   in.file.2 <- read.csv(file.2, header=F, sep='\t')
-#   all.data <- merge(in.file.1, in.file.2, by=c("V1", "V2"))
-#   #print(dim(all.data))
-#   ## Now I need to go through and find all of the instances with 2 responses and take the later responses
-#   ## First find if they have any two response counts
-#   if(dim(table(table(all.data$V2)))>1){
-#     print("Duplicate")
-#     ## Now find which rows are duplicates
-#     row.vals <- names(which(table(all.data$V2)>1))
-#     ## Now go through each of the row vals and take the latest response
-#     # First create an index for the rows to keep
-#     rows.to.lose <- NULL
-#     for(w in row.vals){
-#       # Find max response time
-#       rt.max <- max(as.numeric(as.character(all.data[which(all.data$V2==w),"V6.y"])))
-#       row.index <- which(as.numeric(as.character(all.data[which(all.data$V2==w),"V6.y"]))==rt.max)
-#       row.to.vom <- which(all.data$V2==w)[-row.index]
-#       rows.to.lose <- c(rows.to.lose, row.to.vom)
-#     }
-#     all.data <- all.data[-rows.to.lose,]
-#   }
-#   ## Now fix column names
-#   colnames(all.data) <- c("fileID", "itemVal", "Pre", "PictureDisplayed", "timeShown", "Null", "Null2", "respVal", "ResponseGiven", "timeGiven", "responseTime", "Null3")
-#   all.data$participantID <- p2
-#   all.out <- rbind(all.out, all.data)
-# }
-# 
-# ## Now remove all NULL columns
-# null.col <- grep("Null", names(all.out))
-# all.out <- all.out[,-null.col]
-# 
-# 
-# ## Now go through each of the ids and turn each item from long to wide data
-# id.vals <- names(table(all.out$participantID))
-# picture.vals <- names(table(all.out$PictureDisplayed))
-# all.out.wide <- NULL
-# real.all.wide <- NULL
-# real.all.wide.rt <- NULL
-# question.vals <- names(table(all.out.wide$PictureDisplayed))
-# out.best.guesses <- NULL
-# pb <- progress_bar$new(total = length(id.vals))
-# for(i in id.vals){
-#   # Isolate the data of interest
-#   data.to.use <- all.out[which(all.out$participantID==i),]
-#   ## Now go through an isolate the questions of interest
-#   # First create the participant specific output
-#   participant.wide <- NULL
-#   index <- 1
-#   irt.tmp <- i
-#   irt.tmp2 <- i
-#   for(p in picture.vals){
-#     pic.data.to.use <- data.to.use[which(data.to.use$PictureDisplayed==p),]
-#     ## Now check to see if our dim is greater than 0
-#     if(dim(pic.data.to.use)[1]>0){
-#       ## Add a order column
-#       pic.data.to.use$order <- rank(as.numeric(as.character(pic.data.to.use$timeGiven)))
-#       ## Now reshape using the order as the time val
-#       resp.given <- dcast(pic.data.to.use, formula = PictureDisplayed + participantID ~ order, value.var = c('ResponseGiven'))
-#       resp.time <- dcast(pic.data.to.use, formula = PictureDisplayed + participantID ~ order, value.var = 'responseTime')
-#       # Now merge these
-#       row.out <- merge(resp.time, resp.given, by=c("PictureDisplayed", "participantID"), suffixes = c("_responseTime", "_responseGiven"))
-#       # Now make sure the out row is 1x10
-#       if(!identical(dim(row.out), c(1, 10))){
-#         #print("short")
-#         ## Find which column names are not in here
-#         all.names <- c("PictureDisplayed", "participantID", "1_responseGiven", "2_responseGiven", "3_responseGiven", "4_responseGiven", "1_responseTime", "2_responseTime", "3_responseTime", "4_responseTime")
-#         names.noin <- which(all.names %in% names(row.out)=="FALSE")
-#         ## Now create the noin names columns
-#         for(z in names.noin){
-#           row.out[all.names[z]] <- NA
-#         }
-#       }
-#       ## Now merge
-#       if(index ==1){
-#         participant.wide <- rbind(participant.wide, row.out)
-#       }else{
-#         participant.wide <- merge(row.out, participant.wide, by=c("PictureDisplayed", "participantID"), all=T)
-#       }
-#       ## Now prepare the response given IRT data
-#       row.out.irt <- row.out[, c("PictureDisplayed", "participantID", "1_responseGiven", "2_responseGiven", "3_responseGiven", "4_responseGiven")]
-#       colnames(row.out.irt)[3:6] <- paste(colnames(row.out.irt)[3:6], row.out.irt$PictureDisplayed, sep='_')
-#       row.out.irt <- row.out.irt[,3:6]
-#       irt.tmp <- unlist(as.array(c(irt.tmp, row.out.irt)))
-#       ## Now do the same on RT
-#       row.out.irt2 <- row.out[,c("PictureDisplayed", "participantID", "1_responseTime", "2_responseTime", "3_responseTime", "4_responseTime")]
-#       colnames(row.out.irt2)[3:6] <- paste(colnames(row.out.irt2)[3:6], row.out.irt2$PictureDisplayed, sep='_')
-#       row.out.irt2 <- row.out.irt2[,3:6]
-#       irt.tmp2 <- unlist(as.array(c(irt.tmp2, row.out.irt2)))
-#     }
-#   }
-#   all.out.wide <- rbind(all.out.wide, participant.wide)
-#   real.all.wide <- rbind(real.all.wide, irt.tmp)
-#   real.all.wide.rt <- rbind(real.all.wide.rt, irt.tmp2)
-# 
-#   ## Now find the best estimate for the emotion values
-#   # First collapse the emotions into the four possible emotions
-#   data.to.use$emotion <- "unhappy"
-#   data.to.use$emotion[grep("^N", data.to.use$PictureDisplayed)] <- "neutral"
-#   data.to.use$emotion[grep("^H", data.to.use$PictureDisplayed)] <- "happy"
-#   data.to.use$emotion[grep("^C", data.to.use$PictureDisplayed)] <- "crying"
-#   ## now create an output with the best guess
-#   out.best.guess <- matrix(NA, nrow=1, ncol = 5)
-#   colnames(out.best.guess) <- c("record_id", rownames(table(data.to.use$emotion, as.character(data.to.use$ResponseGiven))))
-#   response.patterns <- table(data.to.use$emotion, data.to.use$ResponseGiven)
-#   ## Now go through each row and find the maximum value -- and return a flag if double!
-#   for(W in row.names(response.patterns)){
-#     row.to.check <- response.patterns[W,]
-#     val.max <- names(which(row.to.check == max(row.to.check)))
-#     if(length(val.max)==1){
-#       out.best.guess[,W] <- val.max
-#     }
-#     if(length(val.max)>1){
-#       out.best.guess[,W] <- "Tie"
-#     }
-#   }
-#   out.best.guess[,"record_id"] <- i
-#   out.best.guesses <- rbind(out.best.guesses, out.best.guess)
-#   pb$tick()
-# }
-# 
-# ## It looks like this method failed and there is far too much confusion -- I am going to grab the left vs right estimates from the
-# ## createConfusionMatrix.R script
-# ## Here if the value is right the emotions will be:
-# # happy == 18 ; neutral == 20 ; unhappy == 22 ; crying == 24
-# ## if emtoins are left then:
-# # happy == 24 ; unhappy == 20 ; neutral == 22 ; crying == 18
-# direction.vals <- read.csv('./leftRightValues.csv')
-# direction.vals$record_id <- strSplitMatrixReturn(direction.vals$V1, "_")[,1]
-# direction.vals <- merge(direction.vals, out.best.guesses, all=T)
-# ### Looks like I am missing data for 118-81 and 118-103 from the original
-# ### Looks like I am issing data for 118-62 from the new
-# 
-# ## Now create new datasets using the best guesses as the item answers
-# ## Now go through and change to the correct emotion triggers
-# ## Manually flip the 117-114 patterns!
-# direction.vals$Guess[which(direction.vals$record_id=="117-114")] <- "Left"
-# direction.vals$crying <- 24
-# direction.vals$crying[direction.vals$Guess=="Right"] <- 18
-# direction.vals$unhappy <- 22
-# direction.vals$unhappy[direction.vals$Guess=="Right"] <- 20
-# direction.vals$neutral <- 20
-# direction.vals$neutral[direction.vals$Guess=="Right"] <- 22
-# direction.vals$happy <- 18
-# direction.vals$happy[direction.vals$Guess=="Right"] <- 24
-# 
-# 
-# 
-# ## Go through and make the proper changes
-# # Adding a tmp id vals as we are missing some data somewhere along this line
-# id.vals <- direction.vals$record_id[complete.cases(direction.vals)]
-# all.out.wide2 <- NULL
-# for(i in id.vals){
-#   ## Isolate the individual
-#   data.to.use <- all.out.wide[which(all.out.wide$participantID==i),]
-#   if(dim(data.to.use)[1]==0){next}
-#   ## answer values
-#   mod.vals <- direction.vals[which(direction.vals$record_id==i),]
-#   ## Now go through each of the emotions and change each of the response values appropriately
-#   orig.vals <- c(18, 20, 22, 24)
-#   for(W in orig.vals){
-#     # Find the emotion to use
-#     new.val <- colnames(mod.vals)[which(mod.vals==W)]
-#     # Now find all of the indices
-#     orig.indices <- which(data.to.use==W)
-#     if(length(orig.indices)==0){
-#       print(paste("Participtant:", i, "Missing:", W,";", new.val, sep = " "))
-#       next
-#     }
-#     orig.indices <- matrix(rc.ind(data.to.use, orig.indices), byrow=F, ncol=2)
-#     ## Now loop through the indices
-#     for(L in 1:dim(orig.indices)[1]){
-#       data.to.use[orig.indices[L,1], orig.indices[L,2]] <- new.val
-#     }
-#   }
-#   ## Now attach this to the new output
-#   all.out.wide2 <- rbind(all.out.wide2, data.to.use)
-# }
-# 
-# ## This code was added 2020-10-06 because ADROSE found some issues with the correct vs incorrect coding!!!
-# ## Now go through and double check the direction vals
-# all.out.wide2$emotion <- "crying"
-# all.out.wide2$emotion[grep("^H", all.out.wide2$PictureDisplayed)] <- "happy"
-# all.out.wide2$emotion[grep("^U", all.out.wide2$PictureDisplayed)] <- "unhappy"
-# all.out.wide2$emotion[grep("^N", all.out.wide2$PictureDisplayed)] <- "neutral"
-# 
-# ## Now double check the scores by participant
-# crying.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,1]
-# happy.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,2]
-# neutral.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,3]
-# unhappy.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,4]
-# 
-# ## Now do the real.all.wide
-# real.all.wide2 <- NULL
-# real.all.wide <- as.data.frame(real.all.wide)
-# for(i in id.vals){
-#   ## Isolate the individual
-#   data.to.use <- real.all.wide[which(real.all.wide[,1]==i),]
-#   if(dim(data.to.use)[1]==0){next}
-#   ## answer values
-#   mod.vals <- direction.vals[which(direction.vals$record_id==i),]
-#   ## Now go through each of the emotions and change each of the response values appropriatly
-#   orig.vals <- c(18, 20, 22, 24)
-#   for(W in orig.vals){
-#     # Find the emotion to use
-#     new.val <- colnames(mod.vals)[which(mod.vals==W)]
-#     # Now find all of the indices
-#     orig.indices <- which(data.to.use==W)
-#     if(length(orig.indices)==0){
-#       print(paste("Participtant:", i, "Missing:", W,";", new.val, sep = " "))
-#       next
-#     }
-#     ## Now change the values to the new value
-#     data.to.use[,orig.indices] <- new.val
-#   }
-#   ## Now attach this to the new output
-#   real.all.wide2 <- rbind(real.all.wide2, data.to.use)
-# }
-# 
-# ## Now I can check to see if both the reaction time & response are NA --
-# ## If they are not then I can go back and add the response depending on missing response values
-# ## Thats going to be for a later time though
-# 
-# 
-# ## Make the variables factors so we can compute the alpha for them
-# all.out.wide2[,7] <- factor(all.out.wide2[,7], c("crying", "unhappy", "neutral", "happy"))
-# all.out.wide2[,8] <- factor(all.out.wide2[,8], c("crying", "unhappy", "neutral", "happy"))
-# ## Add in a checkpoint here!!!
-# all.out.wide2[,9] <- factor(all.out.wide2[,9], c("crying", "unhappy", "neutral", "happy"))
-# all.out.wide2[,10] <- factor(all.out.wide2[,10], c("crying", "unhappy", "neutral", "happy"))
-# 
-# save.image(file = "./eegBehavioralData/IRTIDData.RData")
+# ## This is going to have to be done in a loop
+all.files.pic <- system("ls ~/Documents/bbmcPersonal/eegBehavioralData/careFace/idMod/pic*", intern = T)
+## Now go through this in a loop and merge em
+all.out <- NULL
+for(i in all.files.pic){
+  ## First grab the id
+  tmp <- strSplitMatrixReturn(charactersToSplit = i, splitCharacter = '/')[,9]
+  ## Now isolate the id
+  p1 <- strSplitMatrixReturn(charactersToSplit = tmp, splitCharacter = 'c')[,2]
+  p2 <- strSplitMatrixReturn(charactersToSplit = p1, splitCharacter = '\\.')[,1]
+  print(p2)
+  ## Now decalre the files
+  file.1 <- paste("~/Documents/bbmcPersonal/eegBehavioralData/careFace/idMod/pic", p2,".csv", sep='')
+  file.2 <- paste("~/Documents/bbmcPersonal/eegBehavioralData/careFace/idMod/resp", p2,".csv", sep='')
+  in.file.1 <- read.csv(file.1, header=F, sep='\t')
+  in.file.2 <- read.csv(file.2, header=F, sep='\t')
+  all.data <- merge(in.file.1, in.file.2, by=c("V1", "V2"))
+  #print(dim(all.data))
+  ## Now I need to go through and find all of the instances with 2 responses and take the later responses
+  ## First find if they have any two response counts
+  if(dim(table(table(all.data$V2)))>1){
+    print("Duplicate")
+    ## Now find which rows are duplicates
+    row.vals <- names(which(table(all.data$V2)>1))
+    ## Now go through each of the row vals and take the latest response
+    # First create an index for the rows to keep
+    rows.to.lose <- NULL
+    for(w in row.vals){
+      # Find max response time
+      rt.max <- max(as.numeric(as.character(all.data[which(all.data$V2==w),"V6.y"])))
+      row.index <- which(as.numeric(as.character(all.data[which(all.data$V2==w),"V6.y"]))==rt.max)
+      row.to.vom <- which(all.data$V2==w)[-row.index]
+      rows.to.lose <- c(rows.to.lose, row.to.vom)
+    }
+    all.data <- all.data[-rows.to.lose,]
+  }
+  ## Now fix column names
+  colnames(all.data) <- c("fileID", "itemVal", "Pre", "PictureDisplayed", "timeShown", "Null", "Null2", "respVal", "ResponseGiven", "timeGiven", "responseTime", "Null3")
+  all.data$participantID <- p2
+  all.out <- rbind(all.out, all.data)
+}
+
+## Now remove all NULL columns
+null.col <- grep("Null", names(all.out))
+all.out <- all.out[,-null.col]
+
+
+## Now go through each of the ids and turn each item from long to wide data
+id.vals <- names(table(all.out$participantID))
+picture.vals <- names(table(all.out$PictureDisplayed))
+all.out.wide <- NULL
+real.all.wide <- NULL
+real.all.wide.rt <- NULL
+question.vals <- names(table(all.out.wide$PictureDisplayed))
+out.best.guesses <- NULL
+pb <- progress_bar$new(total = length(id.vals))
+for(i in id.vals){
+  # Isolate the data of interest
+  data.to.use <- all.out[which(all.out$participantID==i),]
+  ## Now go through an isolate the questions of interest
+  # First create the participant specific output
+  participant.wide <- NULL
+  index <- 1
+  irt.tmp <- i
+  irt.tmp2 <- i
+  for(p in picture.vals){
+    pic.data.to.use <- data.to.use[which(data.to.use$PictureDisplayed==p),]
+    ## Now check to see if our dim is greater than 0
+    if(dim(pic.data.to.use)[1]>0){
+      ## Add a order column
+      pic.data.to.use$order <- rank(as.numeric(as.character(pic.data.to.use$timeGiven)))
+      ## Now reshape using the order as the time val
+      resp.given <- dcast(pic.data.to.use, formula = PictureDisplayed + participantID ~ order, value.var = c('ResponseGiven'))
+      resp.time <- dcast(pic.data.to.use, formula = PictureDisplayed + participantID ~ order, value.var = 'responseTime')
+      # Now merge these
+      row.out <- merge(resp.time, resp.given, by=c("PictureDisplayed", "participantID"), suffixes = c("_responseTime", "_responseGiven"))
+      # Now make sure the out row is 1x10
+      if(!identical(dim(row.out), c(1, 10))){
+        #print("short")
+        ## Find which column names are not in here
+        all.names <- c("PictureDisplayed", "participantID", "1_responseGiven", "2_responseGiven", "3_responseGiven", "4_responseGiven", "1_responseTime", "2_responseTime", "3_responseTime", "4_responseTime")
+        names.noin <- which(all.names %in% names(row.out)=="FALSE")
+        ## Now create the noin names columns
+        for(z in names.noin){
+          row.out[all.names[z]] <- NA
+        }
+      }
+      ## Now merge
+      if(index ==1){
+        participant.wide <- rbind(participant.wide, row.out)
+      }else{
+        participant.wide <- merge(row.out, participant.wide, by=c("PictureDisplayed", "participantID"), all=T)
+      }
+      ## Now prepare the response given IRT data
+      row.out.irt <- row.out[, c("PictureDisplayed", "participantID", "1_responseGiven", "2_responseGiven", "3_responseGiven", "4_responseGiven")]
+      colnames(row.out.irt)[3:6] <- paste(colnames(row.out.irt)[3:6], row.out.irt$PictureDisplayed, sep='_')
+      row.out.irt <- row.out.irt[,3:6]
+      irt.tmp <- unlist(as.array(c(irt.tmp, row.out.irt)))
+      ## Now do the same on RT
+      row.out.irt2 <- row.out[,c("PictureDisplayed", "participantID", "1_responseTime", "2_responseTime", "3_responseTime", "4_responseTime")]
+      colnames(row.out.irt2)[3:6] <- paste(colnames(row.out.irt2)[3:6], row.out.irt2$PictureDisplayed, sep='_')
+      row.out.irt2 <- row.out.irt2[,3:6]
+      irt.tmp2 <- unlist(as.array(c(irt.tmp2, row.out.irt2)))
+    }
+  }
+  all.out.wide <- rbind(all.out.wide, participant.wide)
+  real.all.wide <- rbind(real.all.wide, irt.tmp)
+  real.all.wide.rt <- rbind(real.all.wide.rt, irt.tmp2)
+
+  ## Now find the best estimate for the emotion values
+  # First collapse the emotions into the four possible emotions
+  data.to.use$emotion <- "unhappy"
+  data.to.use$emotion[grep("^N", data.to.use$PictureDisplayed)] <- "neutral"
+  data.to.use$emotion[grep("^H", data.to.use$PictureDisplayed)] <- "happy"
+  data.to.use$emotion[grep("^C", data.to.use$PictureDisplayed)] <- "crying"
+  ## now create an output with the best guess
+  out.best.guess <- matrix(NA, nrow=1, ncol = 5)
+  colnames(out.best.guess) <- c("record_id", rownames(table(data.to.use$emotion, as.character(data.to.use$ResponseGiven))))
+  response.patterns <- table(data.to.use$emotion, data.to.use$ResponseGiven)
+  ## Now go through each row and find the maximum value -- and return a flag if double!
+  for(W in row.names(response.patterns)){
+    row.to.check <- response.patterns[W,]
+    val.max <- names(which(row.to.check == max(row.to.check)))
+    if(length(val.max)==1){
+      out.best.guess[,W] <- val.max
+    }
+    if(length(val.max)>1){
+      out.best.guess[,W] <- "Tie"
+    }
+  }
+  out.best.guess[,"record_id"] <- i
+  out.best.guesses <- rbind(out.best.guesses, out.best.guess)
+  pb$tick()
+}
+
+## It looks like this method failed and there is far too much confusion -- I am going to grab the left vs right estimates from the
+## createConfusionMatrix.R script
+## Here if the value is right the emotions will be:
+# happy == 18 ; neutral == 20 ; unhappy == 22 ; crying == 24
+## if emtoins are left then:
+# happy == 24 ; unhappy == 20 ; neutral == 22 ; crying == 18
+direction.vals <- read.csv('./leftRightValues.csv')
+direction.vals$record_id <- strSplitMatrixReturn(direction.vals$V1, "_")[,1]
+direction.vals <- merge(direction.vals, out.best.guesses, all=T)
+### Looks like I am missing data for 118-81 and 118-103 from the original
+### Looks like I am issing data for 118-62 from the new
+
+## Now create new datasets using the best guesses as the item answers
+## Now go through and change to the correct emotion triggers
+## Manually flip the 117-114 patterns!
+direction.vals$Guess[which(direction.vals$record_id=="117-114")] <- "Left"
+## Also need to manually flip: 118-286; I am not sure why this individual failed?
+direction.vals$Guess[which(direction.vals$record_id=="118-286")] <- "Right"
+direction.vals$crying <- 24
+direction.vals$crying[direction.vals$Guess=="Right"] <- 18
+direction.vals$unhappy <- 22
+direction.vals$unhappy[direction.vals$Guess=="Right"] <- 20
+direction.vals$neutral <- 20
+direction.vals$neutral[direction.vals$Guess=="Right"] <- 22
+direction.vals$happy <- 18
+direction.vals$happy[direction.vals$Guess=="Right"] <- 24
+
+
+
+## Go through and make the proper changes
+# Adding a tmp id vals as we are missing some data somewhere along this line
+id.vals <- direction.vals$record_id[complete.cases(direction.vals)]
+all.out.wide2 <- NULL
+for(i in id.vals){
+  ## Isolate the individual
+  data.to.use <- all.out.wide[which(all.out.wide$participantID==i),]
+  if(dim(data.to.use)[1]==0){next}
+  ## answer values
+  mod.vals <- direction.vals[which(direction.vals$record_id==i),]
+  ## Now go through each of the emotions and change each of the response values appropriately
+  orig.vals <- c(18, 20, 22, 24)
+  for(W in orig.vals){
+    # Find the emotion to use
+    new.val <- colnames(mod.vals)[which(mod.vals==W)]
+    # Now find all of the indices
+    orig.indices <- which(data.to.use==W)
+    if(length(orig.indices)==0){
+      print(paste("Participtant:", i, "Missing:", W,";", new.val, sep = " "))
+      next
+    }
+    orig.indices <- matrix(rc.ind(data.to.use, orig.indices), byrow=F, ncol=2)
+    ## Now loop through the indices
+    for(L in 1:dim(orig.indices)[1]){
+      data.to.use[orig.indices[L,1], orig.indices[L,2]] <- new.val
+    }
+  }
+  ## Now attach this to the new output
+  all.out.wide2 <- rbind(all.out.wide2, data.to.use)
+}
+
+## This code was added 2020-10-06 because ADROSE found some issues with the correct vs incorrect coding!!!
+## Now go through and double check the direction vals
+all.out.wide2$emotion <- "crying"
+all.out.wide2$emotion[grep("^H", all.out.wide2$PictureDisplayed)] <- "happy"
+all.out.wide2$emotion[grep("^U", all.out.wide2$PictureDisplayed)] <- "unhappy"
+all.out.wide2$emotion[grep("^N", all.out.wide2$PictureDisplayed)] <- "neutral"
+
+## Now double check the scores by participant
+crying.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,1]
+happy.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,2]
+neutral.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,3]
+unhappy.response <- table(all.out.wide2$emotion, all.out.wide2$participantID, all.out.wide2$"1_responseGiven")[,,4]
+
+## Now do the real.all.wide
+real.all.wide2 <- NULL
+real.all.wide <- as.data.frame(real.all.wide)
+for(i in id.vals){
+  ## Isolate the individual
+  data.to.use <- real.all.wide[which(real.all.wide[,1]==i),]
+  if(dim(data.to.use)[1]==0){next}
+  ## answer values
+  mod.vals <- direction.vals[which(direction.vals$record_id==i),]
+  ## Now go through each of the emotions and change each of the response values appropriatly
+  orig.vals <- c(18, 20, 22, 24)
+  for(W in orig.vals){
+    # Find the emotion to use
+    new.val <- colnames(mod.vals)[which(mod.vals==W)]
+    # Now find all of the indices
+    orig.indices <- which(data.to.use==W)
+    if(length(orig.indices)==0){
+      print(paste("Participtant:", i, "Missing:", W,";", new.val, sep = " "))
+      next
+    }
+    ## Now change the values to the new value
+    data.to.use[,orig.indices] <- new.val
+  }
+  ## Now attach this to the new output
+  real.all.wide2 <- rbind(real.all.wide2, data.to.use)
+}
+
+## Now I can check to see if both the reaction time & response are NA --
+## If they are not then I can go back and add the response depending on missing response values
+## Thats going to be for a later time though
+
+## Make the variables factors so we can compute the alpha for them
+all.out.wide2[,7] <- factor(all.out.wide2[,7], c("crying", "unhappy", "neutral", "happy"))
+all.out.wide2[,8] <- factor(all.out.wide2[,8], c("crying", "unhappy", "neutral", "happy"))
+## Add in a checkpoint here!!!
+all.out.wide2[,9] <- factor(all.out.wide2[,9], c("crying", "unhappy", "neutral", "happy"))
+all.out.wide2[,10] <- factor(all.out.wide2[,10], c("crying", "unhappy", "neutral", "happy"))
+
+save.image(file = "./eegBehavioralData/IRTIDData.RData")
 load("./eegBehavioralData/IRTIDData.RData")
 
 
@@ -309,20 +310,20 @@ for(i in question.vals){
   output.con <- rbind(output.con, out.row)
 }
 
-## Now try to train a LMER mod for response time ~ picture displayed
-# First load the IRT data
-item.diff <- read.csv("./eegBehavioralData/itemDifficultyID.csv", row.names = NULL)
-item.diff$itemName <- paste(strSplitMatrixReturn(item.diff$X4, "_")[,2], item.diff$X5, sep=',')
-# Merge em
-for.lmer <- merge(all.out, item.diff, by.x = "PictureDisplayed", by.y="itemName", all=T)
-for.lmer$row.names <- as.numeric(for.lmer$row.names)
-for.lmer$responseTime <- as.numeric(as.character(for.lmer$responseTime))
-tmp <- lmerTest::lmer(responseTime ~   Emotion+ X1+(1|PictureDisplayed /participantID), data=for.lmer)
-write.csv(for.lmer, "responseTimeQuestion.csv", quote=F, row.names=F)
+# ## Now try to train a LMER mod for response time ~ picture displayed
+# # First load the IRT data
+# item.diff <- read.csv("./eegBehavioralData/itemDifficultyID.csv", row.names = NULL)
+# item.diff$itemName <- paste(strSplitMatrixReturn(item.diff$X4, "_")[,2], item.diff$X5, sep=',')
+# # Merge em
+# for.lmer <- merge(all.out, item.diff, by.x = "PictureDisplayed", by.y="itemName", all=T)
+# for.lmer$row.names <- as.numeric(for.lmer$row.names)
+# for.lmer$responseTime <- as.numeric(as.character(for.lmer$responseTime))
+# tmp <- lmerTest::lmer(responseTime ~   Emotion+ X1+(1|PictureDisplayed /participantID), data=for.lmer)
+# write.csv(for.lmer, "responseTimeQuestion.csv", quote=F, row.names=F)
 
 
-## Now check for endurance effects
-tmp.2 <- lmerTest::lmer(responseTime~ timeShown + (1|participantID), data=for.lmer)
+# ## Now check for endurance effects
+# tmp.2 <- lmerTest::lmer(responseTime~ timeShown + (1|participantID), data=for.lmer)
 
 ## Now play with the IRT models here
 # first orgainze the data
@@ -416,6 +417,44 @@ for.irt3.cv$raceAgree <- factor(for.irt3.cv$raceAgree)
 item.cov.explore2 <- lme4::glmer(value ~ (Gender + raceAgree + Emotion)^2 + (1|record_id), data=for.irt3.cv, family = binomial)
 visreg::visreg(item.cov.explore2, "Gender", by="raceAgree")
 #item.cov.explore <- glm(value ~ Gender + Race * raceAgree + variable, data=for.irt3.cv, family = binomial)
+
+## Now explore variance across trials within a participant
+# First grab the individual ID values
+for.irt3.cv <- for.irt3
+colnames(for.irt3.cv) <- strSplitMatrixReturn(colnames(for.irt)[2:97], "_")[,2]
+for.irt3.cv$record_id <- for.irt$V1
+# Now grab the correct values within an individual across time
+# Start with overall
+for.irt3.cv$allCor <- rowSums(for.irt3.cv[,1:96], na.rm = T)
+for.irt3.cv$allPer <- for.irt3.cv$allCor / rowSums(!is.na(for.irt3.cv[,1:96]))
+# Now do the emotion specific values
+for.irt3.cv$cryCor <- rowSums(for.irt3.cv[,1:24])
+for.irt3.cv$cryPer <- for.irt3.cv$cryCor / rowSums(!is.na(for.irt3.cv[,1:24]))
+for.irt3.cv$hapCor <- rowSums(for.irt3.cv[,25:48])
+for.irt3.cv$hapPer <- for.irt3.cv$hapCor / rowSums(!is.na(for.irt3.cv[,25:48]))
+for.irt3.cv$neuCor <- rowSums(for.irt3.cv[,49:72])
+for.irt3.cv$neuPer <- for.irt3.cv$neuCor / rowSums(!is.na(for.irt3.cv[,49:72]))
+for.irt3.cv$unhCor <- rowSums(for.irt3.cv[,73:96])
+for.irt3.cv$unhPer <- for.irt3.cv$unhCor / rowSums(!is.na(for.irt3.cv[,73:96]))
+
+# Now add a marker for the round each response pattern is associated with rounds go from 1--> 4
+for.irt3.cv$round <- 1
+for.irt3.cv$round[62:122] <- 2
+for.irt3.cv$round[123:183] <- 3
+for.irt3.cv$round[184:244] <- 4
+
+## Now plot these performances across time within each individual
+tmp.plot <- for.irt3.cv %>% ggplot(., aes(x=round, y=allPer, group=record_id)) +
+  geom_point() +
+  geom_line()
+## Now do the same for each emotion
+for.irt3.cv.tmp <- for.irt3.cv[,c("record_id", "round", "cryPer", "hapPer", "neuPer", "unhPer")]
+for.irt3.cv.tmp <- melt(for.irt3.cv.tmp, id.vars = c("record_id", "round"))
+tmp.plot2 <- for.irt3.cv.tmp %>% ggplot(., aes(y=record_id, x=value, group=record_id, color=variable)) +
+  geom_point() +
+  #geom_line() +
+  theme_bw()
+  #facet_wrap( ~ variable)
 
 ## Now fit 2 1-factor models using the high intensity and low intensity data seperate
 mod.11 <- mirt(for.irt3[,1:48], 1, SE=T, itemtype='2PL')
@@ -568,7 +607,6 @@ lmer.mod.crying.prod <- lm(productOutcome ~ dose_hv_visit_count * ace_score, dat
 visreg::visreg(lmer.mod.crying, "P2crymaxCarepost", by="P2crymaxCareLatpost", overlay=T, gg=T) + theme_bw()
 visreg::visreg(lmer.mod.crying.hvBace, "dose_hv_visit_count", by="ace_score", overlay=T, gg=T) + theme_bw()
 visreg::visreg(lmer.mod.crying.prod, "dose_hv_visit_count", by="ace_score", overlay=T, gg=T) + theme_bw()
-
 
 ## Prepare multiple cores
 mirtCluster(spec = 4)
