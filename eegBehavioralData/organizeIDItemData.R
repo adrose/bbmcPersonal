@@ -158,7 +158,7 @@ direction.vals <- read.csv('./leftRightValues.csv')
 direction.vals$record_id <- strSplitMatrixReturn(direction.vals$V1, "_")[,1]
 direction.vals <- merge(direction.vals, out.best.guesses, all=T)
 ### Looks like I am missing data for 118-81 and 118-103 from the original
-### Looks like I am issing data for 118-62 from the new
+### Looks like I am missing data for 118-62 from the new
 
 ## Now create new datasets using the best guesses as the item answers
 ## Now go through and change to the correct emotion triggers
@@ -166,6 +166,7 @@ direction.vals <- merge(direction.vals, out.best.guesses, all=T)
 direction.vals$Guess[which(direction.vals$record_id=="117-114")] <- "Left"
 ## Also need to manually flip: 118-286; I am not sure why this individual failed?
 direction.vals$Guess[which(direction.vals$record_id=="118-286")] <- "Right"
+direction.vals$Guess[which(direction.vals$record_id=="118-300")] <- "Right"
 direction.vals$crying <- 24
 direction.vals$crying[direction.vals$Guess=="Right"] <- 18
 direction.vals$unhappy <- 22
@@ -174,8 +175,6 @@ direction.vals$neutral <- 20
 direction.vals$neutral[direction.vals$Guess=="Right"] <- 22
 direction.vals$happy <- 18
 direction.vals$happy[direction.vals$Guess=="Right"] <- 24
-
-
 
 ## Go through and make the proper changes
 # Adding a tmp id vals as we are missing some data somewhere along this line
@@ -428,13 +427,13 @@ for.irt3.cv$record_id <- for.irt$V1
 for.irt3.cv$allCor <- rowSums(for.irt3.cv[,1:96], na.rm = T)
 for.irt3.cv$allPer <- for.irt3.cv$allCor / rowSums(!is.na(for.irt3.cv[,1:96]))
 # Now do the emotion specific values
-for.irt3.cv$cryCor <- rowSums(for.irt3.cv[,1:24])
+for.irt3.cv$cryCor <- rowSums(for.irt3.cv[,1:24], na.rm = T)
 for.irt3.cv$cryPer <- for.irt3.cv$cryCor / rowSums(!is.na(for.irt3.cv[,1:24]))
-for.irt3.cv$hapCor <- rowSums(for.irt3.cv[,25:48])
+for.irt3.cv$hapCor <- rowSums(for.irt3.cv[,25:48], na.rm = T)
 for.irt3.cv$hapPer <- for.irt3.cv$hapCor / rowSums(!is.na(for.irt3.cv[,25:48]))
-for.irt3.cv$neuCor <- rowSums(for.irt3.cv[,49:72])
+for.irt3.cv$neuCor <- rowSums(for.irt3.cv[,49:72], na.rm = T)
 for.irt3.cv$neuPer <- for.irt3.cv$neuCor / rowSums(!is.na(for.irt3.cv[,49:72]))
-for.irt3.cv$unhCor <- rowSums(for.irt3.cv[,73:96])
+for.irt3.cv$unhCor <- rowSums(for.irt3.cv[,73:96], na.rm = T)
 for.irt3.cv$unhPer <- for.irt3.cv$unhCor / rowSums(!is.na(for.irt3.cv[,73:96]))
 
 # Now add a marker for the round each response pattern is associated with rounds go from 1--> 4
@@ -444,6 +443,7 @@ for.irt3.cv$round[123:183] <- 3
 for.irt3.cv$round[184:244] <- 4
 
 ## Now plot these performances across time within each individual
+library(tidyverse)
 tmp.plot <- for.irt3.cv %>% ggplot(., aes(x=round, y=allPer, group=record_id)) +
   geom_point() +
   geom_line()
@@ -455,6 +455,9 @@ tmp.plot2 <- for.irt3.cv.tmp %>% ggplot(., aes(y=record_id, x=value, group=recor
   #geom_line() +
   theme_bw()
   #facet_wrap( ~ variable)
+
+## Now try to model practice effects?
+mod.practice <- lmerTest::lmer(value ~ variable * round + (1|record_id), data=for.irt3.cv.tmp)
 
 ## Now fit 2 1-factor models using the high intensity and low intensity data seperate
 mod.11 <- mirt(for.irt3[,1:48], 1, SE=T, itemtype='2PL')
@@ -793,7 +796,7 @@ save.image(file="allMixedMods.RData")
 ## Write the files for the MIMIC models here
 ## These will be exported to a machine that can run MPlus -- my worktop
 cry.dat <- for.irt.mixed[,c(2:25)]
-cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2crymaxCarepost","P2crymaxCareLatpost")])
+cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "","P2crymaxCarepost","P2crymaxCareLatpost")])
 write.csv(cry.dat, "./forMIMICCry.csv", quote=F, row.names=F)
 hap.dat <- for.irt.mixed[,c(26:49)]
 hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCarepost","P2happymaxCareLatpost")])
