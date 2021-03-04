@@ -270,6 +270,9 @@ for(i in 1:length(yes.vals)){
 for.irt[,2:97] <- apply(for.irt[,2:97], 2, function(x) ifelse(x > 1, 0, x))
 for.irt[,2:97] <- binary.flip(for.irt[,2:97])
 
+## Now lets look at % correct wihtin an individual across administrations
+for.irt.variance <- 
+
 ## Now run IRT
 mod.2 <- mirt(for.irt[,c(2:97)], 1, IRTpars=T)
 mod.2.unhappy <- mirt(for.irt[,c(74:97)], 1, IRTpars=T)
