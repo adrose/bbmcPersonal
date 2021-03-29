@@ -18,7 +18,7 @@ library(utils)
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 
 # ---- set-parallel-env -----------------------------------------------------------------
-cl <- makeCluster(4)
+cl <- makeCluster(3)
 registerDoParallel(cl)
 
 
@@ -27,10 +27,10 @@ registerDoParallel(cl)
 dif.items   <- c(.1, .3, .5)
 total.items <- c(20) ## Keep this static - it is not built into the directory creation structure ATM!!!
 dif.in.dif <- c(.3,.6,1)
-floor.dif <- c(-1, 1)
+floor.dif <- c(-3, -1, 1)
 floor.dis <- c(.3, 1.5)
 sample.size <- c(200, 1000)
-sample.dist <- c(.25,.5)
+sample.dist <- c(.5)
 sim.total <- 100
 ## Now create this combination of permutations
 all.folds <- expand.grid(dif.items, total.items, dif.in.dif, floor.dif, floor.dis, sample.size, sample.dist)
@@ -59,7 +59,9 @@ vals <- foreach(i=1:dim(all.folds)[1], .export = "results") %do%{
   sample.size.ref <- floor(all.folds[i,6] * (1-all.folds[i,7]))
   sample.size.foc <- floor(all.folds[i,6] * (all.folds[i,7]))
   # Now create the output directory to store all of the values
-  out.dir <- paste(base.dir, "/sampleSize_", all.folds[i,6], "sampleProp", all.folds[i,7],"/totalItems_", total.item.val,"/propDif_", total.dif.items,"/floorDifRef_", floor.difficulty.ref, "/floorDifFoc_", floor.difficulty.foc, sep='')
+  out.dir <- paste(base.dir, "/sampleSize_", all.folds[i,6], "sampleProp", all.folds[i,7],"/totalItems_", 
+                   total.item.val,"/propDif_", total.dif.items,"/floorDifRef_", floor.difficulty.ref, "/floorDifFoc_", 
+                   floor.difficulty.foc, "/floorDisRef_", floor.discrim.ref ,sep='')
   # Create directory if it does not exist
   if(!dir.exists(out.dir)){
     dir.create(out.dir, recursive = T)
@@ -71,7 +73,7 @@ vals <- foreach(i=1:dim(all.folds)[1], .export = "results") %do%{
       if(!file.exists(out.file)){
         # sample the difficulty estimates
         difficulty.no.dif <- runif(total.item.val, floor.difficulty.ref, ceiling.difficulty.ref)
-        difficulty.with.dif.ref <- runif(total.dif.items, floor.difficulty.foc, ceiling.difficulty.ref)
+        difficulty.with.dif.ref <- runif(total.dif.items, floor.difficulty.foc, max(difficulty.no.dif[1:total.dif.items]))
         difficulty.with.dif <- difficulty.no.dif
         difficulty.with.dif[1:total.dif.items] <- difficulty.with.dif.ref
         # Now sample the discrimination values
@@ -86,10 +88,13 @@ vals <- foreach(i=1:dim(all.folds)[1], .export = "results") %do%{
         ## Now combine these data and estimate the item params
         all.vals <- rbind(sim.ref$items, sim.foc$items)
         mod.one <- irt.fa(all.vals, plot=FALSE)
+        # Now do a model without any of the DIF items
+        mod.two <- irt.fa(all.vals[,-c(1:total.dif.items)])
         ## Now score the estimates
         IRT_scores <- scoreIrt(mod.one, all.vals)$theta1
+        IRT_scores_nd <- scoreIrt(mod.two, all.vals[,-c(1:total.dif.items)])$theta1
         ## Now output all of these values
-        output.list <- list(ref.dif = difficulty.no.dif, foc.dif = difficulty.with.dif.ref, IRTmod = mod.one, true.scores = true.theta, est.vals = IRT_scores)
+        output.list <- list(ref.dif = difficulty.no.dif, foc.dif = difficulty.with.dif.ref, IRTmod = mod.one, IRTmodND = mod.two, true.scores = true.theta, est.vals = IRT_scores, est.valsND = IRT_scores_nd)
         ## Now write these to disk
         save(output.list, file=out.file)
       }
@@ -120,13 +125,17 @@ for(i in 1:dim(all.folds)[1]){
       print(paste("error", "I==", i, "q==", q))
       next
     }
+    # Grab the estimated values
     est.vals <- vals[[i]][[q]]$est.vals
+    est.vals.ND <- vals[[i]][[q]]$est.valsND
     ## Get the true values
     tru.vals <- vals[[i]][[q]]$true.scores
     ## Cor these values
     cor.val <- cor(est.vals, tru.vals)
+    cor.val2 <- cor(est.vals.ND, tru.vals)
+    cor.val3 <- cor(est.vals, est.vals.ND)
     ## NOw write this row
-    out.row <- c(dif.in.dif, floor.dif, floor.dis, num.items, num.dif, samp.size, prop.dif, cor.val)
+    out.row <- c(dif.in.dif, floor.dif, floor.dis, num.items, num.dif, samp.size, prop.dif, cor.val, cor.val2, cor.val3)
     all.anova.vals <- rbind(all.anova.vals, out.row)
   }
 }
@@ -139,35 +148,53 @@ colnames(all.anova.vals) <- c("dif.in.dif",
                               "num.dif",
                               "samp.size",
                               "prop.dif",
-                              "cor.val")
+                              "cor.val",
+                              "cor.val2",
+                              "cor.val3")
 all.anova.vals[,1:7] <- apply(all.anova.vals[,1:7], 2, as.factor)
 # Identify any variable with multiple values
 length.vals <- apply(all.anova.vals, 2, function(x) length(table(x)))
 ## Now create a formula based on any varaible that has multiple values
 outcome.var <- "cor.val"
 
-mod <- lm(cor.val ~ (dif.in.dif+floor.dif+floor.dis+num.dif+samp.size+prop.dif)^3, data=all.anova.vals)
+mod <- lm(cor.val ~ (dif.in.dif+floor.dif+floor.dis+num.dif+samp.size)^3, data=all.anova.vals)
+mod2 <- lm(cor.val2 ~ (dif.in.dif+floor.dif+floor.dis+num.dif+samp.size)^3, data=all.anova.vals)
+mod3 <- lm(cor.val3 ~ (dif.in.dif+floor.dif+floor.dis+num.dif+samp.size)^3, data=all.anova.vals)
 
 # ---- plot-uni-dif-results -----------------------------------------------------------------
 library(visreg)
+library(tidyverse)
 ## Most interesting interactions will be plotted here
 p1 <- visreg(mod, "dif.in.dif", by="floor.dif", cond=list(num.dif="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p1$layers[[4]] <- NULL
 p2 <- visreg(mod, "dif.in.dif", by="floor.dif", cond=list(num.dif="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p2$layers[[4]] <- NULL
 p3 <- visreg(mod, "dif.in.dif", by="floor.dif", cond=list(num.dif="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p3$layers[[4]] <- NULL
 multiplot(p1, p2, p3, cols = 3)
 
-p1 <- visreg(mod, "dif.in.dif", by="samp.size", cond=list(num.dif="0.1"), overlay=F, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
-p2 <- visreg(mod, "dif.in.dif", by="samp.size", cond=list(num.dif="0.3"), overlay=F, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
-p3 <- visreg(mod, "dif.in.dif", by="samp.size", cond=list(num.dif="0.5"), overlay=F, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p1 <- visreg(mod, "floor.dis", by="floor.dif", cond=list(samp.size="200"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p1$layers[[3]] <- NULL
+p2 <- visreg(mod, "floor.dis", by="floor.dif", cond=list(samp.size="1000"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p2$layers[[3]] <- NULL
+multiplot(p1, p2, cols = 2)
+
+
+p1 <- visreg(mod, "dif.in.dif", by="samp.size", cond=list(num.dif="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p1$layers[[4]] <- NULL
+p2 <- visreg(mod, "dif.in.dif", by="samp.size", cond=list(num.dif="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p2$layers[[4]] <- NULL
+p3 <- visreg(mod, "dif.in.dif", by="samp.size", cond=list(num.dif="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1")
+p3$layers[[4]] <- NULL
 multiplot(p1, p2, p3, cols = 3)
 
-## Now visualize all contrasts
-all.contrasts <- summarySE(all.anova.vals, measurevar = "cor.val", groupvars = c("dif.in.dif", "floor.dif", "floor.dis", "num.dif", "samp.size", "prop.dif"), na.rm=T)
 
-all.contrasts[which(all.contrasts$floor.dis==.3),] %>% ggplot(., aes(x=dif.in.dif, y=cor.val, fill=samp.size)) +
-  geom_bar(stat='identity', position = 'dodge') +
-  geom_errorbar(aes(ymin=cor.val-se, ymax=cor.val+se)) +
-  facet_grid(floor.dif~num.dif)
+p1 <- visreg(mod, "dif.in.dif", by="floor.dif", cond=list(floor.dis="1.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1") + ggtitle("Floor Dis = 1.5")
+p1$layers[[4]] <- NULL
+p2 <- visreg(mod, "dif.in.dif", by="floor.dif", cond=list(floor.dis="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, .95)) + scale_color_brewer(palette="Set1") + ggtitle("Floor Dis = 0.3")
+p2$layers[[4]] <- NULL
+multiplot(p1, p2, cols = 2)
+
   
 
 # ---- declare-sim-nonuniform-dif -----------------------------------------------------------------
@@ -175,10 +202,10 @@ dif.items   <- c(.1, .3, .5)
 total.items <- c(20)
 dif.in.dif <- c(.3,.6, 1)
 dif.in.dis <- c(.1, .3, .5)
-floor.dif <- c(-1, 1)
+floor.dif <- c(-3,-1, 1)
 floor.dis <- c(.3, 1.5)
 sample.size <- c(200, 1000)
-sample.dist <- c(.25,.5)
+sample.dist <- c(.5)
 sim.total <- 100
 
 ## Now create this combination of permutations
@@ -229,12 +256,12 @@ vals <- foreach(i=1:dim(all.folds)[1], .export = "results") %do%{
     if(!file.exists(out.file)){
       # sample the difficulty estimates
       difficulty.no.dif <- runif(total.item.val, floor.difficulty.ref, ceiling.difficulty.ref)
-      difficulty.with.dif.ref <- runif(total.dif.items, floor.difficulty.foc, ceiling.difficulty.ref)
+      difficulty.with.dif.ref <- runif(total.dif.items, floor.difficulty.foc, max(difficulty.no.dif[1:total.dif.items]))
       difficulty.with.dif <- difficulty.no.dif
       difficulty.with.dif[1:total.dif.items] <- difficulty.with.dif.ref
       # Now sample the discrimination values
       discrim.no.dif <- runif(total.item.val, floor.discrim.ref, ceiling.discrim.ref)
-      discrim.with.dif.foc <- runif(total.dif.items, floor.discrim.foc, ceiling.discrim.foc)
+      discrim.with.dif.foc <- runif(total.dif.items, floor.discrim.foc, max(discrim.no.dif[1:total.dif.items]))
       discrim.with.dif <- discrim.no.dif
       discrim.with.dif[1:total.dif.items] <- discrim.with.dif.foc
       # Now sample the true theta
@@ -247,10 +274,13 @@ vals <- foreach(i=1:dim(all.folds)[1], .export = "results") %do%{
       ## Now combine these data and estimate the item params
       all.vals <- rbind(sim.ref$items, sim.foc$items)
       mod.one <- irt.fa(all.vals, plot=FALSE)
+      # Now do a model without any of the DIF items
+      mod.two <- irt.fa(all.vals[,-c(1:total.dif.items)])
       ## Now score the estimates
       IRT_scores <- scoreIrt(mod.one, all.vals)$theta1
+      IRT_scores_nd <- scoreIrt(mod.two, all.vals[,-c(1:total.dif.items)])$theta1
       ## Now output all of these values
-      output.list <- list(ref.dif = difficulty.no.dif, foc.dif = difficulty.with.dif.ref, IRTmod = mod.one, true.scores = true.theta, est.vals = IRT_scores)
+      output.list <- list(ref.dif = difficulty.no.dif, foc.dif = difficulty.with.dif.ref, IRTmod = mod.one, IRTmodND = mod.two, true.scores = true.theta, est.vals = IRT_scores, est.valsND = IRT_scores_nd)
       ## Now write these to disk
       save(output.list, file=out.file)
     }
@@ -284,50 +314,67 @@ for(i in 1:dim(all.folds)[1]){
     }
     ## Get the estimated values
     est.vals <- vals[[i]][[q]]$est.vals
+    # Grab the estimated values
+    est.vals <- vals[[i]][[q]]$est.vals
+    est.vals.ND <- vals[[i]][[q]]$est.valsND
     ## Get the true values
     tru.vals <- vals[[i]][[q]]$true.scores
     ## Cor these values
     cor.val <- cor(est.vals, tru.vals)
+    cor.val2 <- cor(est.vals.ND, tru.vals)
+    cor.val3 <- cor(est.vals, est.vals.ND)
     ## NOw write this row
-    out.row <- c(dif.in.dif, floor.dif, floor.dis, num.items, num.dif, samp.size, cor.val, dif.in.dis)
+    out.row <- c(dif.in.dif, floor.dif, floor.dis, num.items, num.dif, samp.size, cor.val, dif.in.dis, cor.val2, cor.val3)
     all.anova.vals <- rbind(all.anova.vals, out.row)
   }
 }
 ## Now train the model
 all.anova.vals <- as.data.frame(all.anova.vals)
 all.anova.vals[,c(1:6, 8)] <- apply(all.anova.vals[,c(1:6, 8)], 2, as.factor)
-mod <- lm(V7 ~ (V1 + V2 + V3 + V5 + V8)^4, data=all.anova.vals)
+colnames(all.anova.vals) <- c("dif.in.dif", "floor.dif", "floor.dis", "num.items", "prop.dif", "samp.size", "cor.val", "dif.in.dis", "cor.val2", "cor.val3")
+mod1 <- lm(cor.val ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^6, data=all.anova.vals)
+mod2 <- lm(cor.val2 ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^6, data=all.anova.vals)
+mod3 <- lm(cor.val3 ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^6, data=all.anova.vals)
 
 
 # ---- plot-nonuni-dif-results -----------------------------------------------------------------
 library(visreg)
+
+p1 <- visreg(mod, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p1$layers[[3]] <- NULL
+p2 <- visreg(mod, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p2$layers[[3]] <- NULL
+p3 <- visreg(mod, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p3$layers[[3]] <- NULL
+multiplot(p1, p2, p3, cols=3)
+
 ## Most interesting interactions will be plotted here
-p1 <- visreg(mod, "V3", by="V8", cond=list(V5="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, 1)) + scale_color_brewer(palette="Set1")
-p2 <- visreg(mod, "V3", by="V8", cond=list(V5="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, 1)) + scale_color_brewer(palette="Set1")
-p3 <- visreg(mod, "V3", by="V8", cond=list(V5="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, 1)) + scale_color_brewer(palette="Set1")
+p1 <- visreg(mod, "dif.in.dis", by="floor.dif", cond=list(floor.dis="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p2 <- visreg(mod, "dif.in.dis", by="floor.dif", cond=list(floor.dis="1.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+#p3 <- visreg(mod, "dif.in.dis", by="floor.dif", cond=list(floor.dis="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, 1)) + scale_color_brewer(palette="Set1")
+multiplot(p1, p2, cols = 2)
+
+p1 <- visreg(mod, "dif.in.dif", by="floor.dis", cond=list(prop.dif="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2")
+p2 <- visreg(mod, "dif.in.dif", by="floor.dis", cond=list(prop.dif="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2")
+p3 <- visreg(mod, "dif.in.dif", by="floor.dis", cond=list(prop.dif="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2")
 multiplot(p1, p2, p3, cols = 3)
 
-p1 <- visreg(mod, "V3", by="V2", cond=list(V5="0.1"), overlay=T, gg=TRUE) + ggtitle("Prop DIF = .1") + theme(legend.position = "bottom") + scale_color_brewer(palette="PRGn")
-p2 <- visreg(mod, "V3", by="V2", cond=list(V5="0.3"), overlay=T, gg=TRUE) + ggtitle("Prop DIF = .3") + theme(legend.position = "none") + scale_color_brewer(palette="PRGn")
-p3 <- visreg(mod, "V3", by="V2", cond=list(V5="0.5"), overlay=T, gg=TRUE) + ggtitle("Prop DIF = .5") + theme(legend.position = "none") + scale_color_brewer(palette="PRGn")
-multiplot(p1, p2, p3, cols = 3)
-
-## DO all of the main effects here
-visreg(mod, "V1", gg=TRUE) + ggtitle("ME: Magnitude of Dif in Dif")
-visreg(mod, "V2", gg=TRUE) + ggtitle("ME: Floor Difficulty")
-visreg(mod, "V3", gg=TRUE) + ggtitle("ME: Floor Discrimination")
-visreg(mod, "V5", gg=TRUE) + ggtitle("ME: Prop of items with DIF")
-visreg(mod, "V6", gg=TRUE) + ggtitle("ME: Sample Size")
-visreg(mod, "V8", gg=TRUE) + ggtitle("ME: Magnitude of Dif in Dis")
-
-## Now do the bar plots
-plot.vals <- summarySE(data=all.anova.vals, measurevar = "V7", groupvars = c("V2", "V3", "V5", "V8"))
-tmp.plot <- ggplot(plot.vals, aes(x=V8, y=V7, fill=V3, color=V3)) +
-  geom_bar(position="dodge", stat="identity") +
-  geom_errorbar(aes(ymin=V7-se, ymax=V7+se),position="dodge", stat="identity") +
-  facet_grid(V2~V5) +
-  coord_cartesian(ylim=c(.7, 1))
+p1 <- visreg(mod, "floor.dis", by="dif.in.dis", overlay=T, gg=TRUE) + theme_minimal()
 
 
-## FInd the range of values
-tmp.vals <- summarySE(data = all.anova.vals, measurevar = "V7", groupvars = c("V1","V2","V3","V4","V5","V6","V8"))
+p1 <- visreg(mod, "floor.dis", by="floor.dif", overlay=T, gg=TRUE) + theme_minimal()
+
+p1 <- visreg(mod, "floor.dis")
+
+
+# ---- plot-nonuni-dif-results-wd-vs-nd -----------------------------------------------------------------
+p1 <- visreg(mod3, "floor.dif", by="prop.dif", cond=list(samp.size="1000", floor.dis=.3), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("n=1000 - floor.dis=.3") + coord_cartesian(ylim=c(.85, 1)) 
+p1$layers[[4]] <- NULL
+p2 <- visreg(mod3, "floor.dif", by="prop.dif", cond=list(samp.size="1000", floor.dis=1.5), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("n=1000 - floor.dis=1.3") + coord_cartesian(ylim=c(.85, 1))
+p2$layers[[4]] <- NULL
+p4 <- visreg(mod3, "floor.dif", by="prop.dif", cond=list(samp.size="200", floor.dis=.3), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("n=200 - floor.dis=.3") + coord_cartesian(ylim=c(.85, 1))
+p4$layers[[4]] <- NULL
+p5 <- visreg(mod3, "floor.dif", by="prop.dif", cond=list(samp.size="200", floor.dis=1.5), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("n=200 - floor.dis=1.3") + coord_cartesian(ylim=c(.85, 1))
+p5$layers[[4]] <- NULL
+
+multiplot(p1, p2, p4, p5, cols=2)
