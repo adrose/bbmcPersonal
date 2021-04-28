@@ -200,9 +200,9 @@ multiplot(p1, p2, cols = 2)
 # ---- declare-sim-nonuniform-dif -----------------------------------------------------------------
 dif.items   <- c(.1, .3, .5)
 total.items <- c(20)
-dif.in.dif <- c(.3,.6, 1)
-dif.in.dis <- c(.1, .3, .5)
-floor.dif <- c(-3,-1, 1)
+dif.in.dif <- c(0, .3,.6, 1)
+dif.in.dis <- c(0, .3, .5, .7)
+floor.dif <- c(-1, 1)
 floor.dis <- c(.3, 1.5)
 sample.size <- c(200, 1000)
 sample.dist <- c(.5)
@@ -332,39 +332,78 @@ for(i in 1:dim(all.folds)[1]){
 all.anova.vals <- as.data.frame(all.anova.vals)
 all.anova.vals[,c(1:6, 8)] <- apply(all.anova.vals[,c(1:6, 8)], 2, as.factor)
 colnames(all.anova.vals) <- c("dif.in.dif", "floor.dif", "floor.dis", "num.items", "prop.dif", "samp.size", "cor.val", "dif.in.dis", "cor.val2", "cor.val3")
-mod1 <- lm(cor.val ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^6, data=all.anova.vals)
-mod2 <- lm(cor.val2 ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^6, data=all.anova.vals)
-mod3 <- lm(cor.val3 ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^6, data=all.anova.vals)
+mod1 <- lm(cor.val ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^4, data=all.anova.vals)
+mod2 <- lm(cor.val2 ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^3, data=all.anova.vals)
+mod3 <- lm(cor.val3 ~ (dif.in.dif + floor.dif + floor.dis + prop.dif + samp.size + dif.in.dis)^3, data=all.anova.vals)
 
 
 # ---- plot-nonuni-dif-results -----------------------------------------------------------------
 library(visreg)
+## floor.dif:floor.dis:prop.dif:dif.in.dis 
+p1 <- visreg(mod1, "prop.dif", by="dif.in.dis", cond=list(floor.dis=.3, floor.dif="-1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.6, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Floor Dis = .3 ; Floor Dif = -1")
+p2 <- visreg(mod1, "prop.dif", by="dif.in.dis", cond=list(floor.dis=.3, floor.dif="1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.6, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Floor Dis = .3 ; Floor Dif = 1")
+p3 <- visreg(mod1, "prop.dif", by="dif.in.dis", cond=list(floor.dis=1.5, floor.dif="-1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.6, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Floor Dis = 1.5 ; Floor Dif = -1")
+p4 <- visreg(mod1, "prop.dif", by="dif.in.dis", cond=list(floor.dis=1.5, floor.dif="1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.6, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Floor Dis = 1.5 ; Floor Dif = 1")
+p1$layers[[4]] <- NULL
+p2$layers[[4]] <- NULL
+p3$layers[[4]] <- NULL
+p4$layers[[4]] <- NULL
+multiplot(p1, p2 , p3, p4, cols=2)
 
-p1 <- visreg(mod, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+# dif.items   <- c(.1, .3, .5)
+# total.items <- c(20)
+# dif.in.dif <- c(0, .3,.6, 1)
+# dif.in.dis <- c(0, .3, .5, .7)
+# floor.dif <- c(-1, 1)
+# floor.dis <- c(.3, 1.5)
+# sample.size <- c(200, 1000)
+# sample.dist <- c(.5)
+# sim.total <- 100
+
+
+## floor.dis:prop.dif:dif.in.dis
+dif.in.dis <- c(0, .3, .5, .7)
+p1 <- visreg(mod1, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Dif in Dis = 0")
 p1$layers[[3]] <- NULL
-p2 <- visreg(mod, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p2 <- visreg(mod1, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Dif in Dis = 0.3")
 p2$layers[[3]] <- NULL
-p3 <- visreg(mod, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p3 <- visreg(mod1, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Dif in Dis = 0.5")
 p3$layers[[3]] <- NULL
-multiplot(p1, p2, p3, cols=3)
+p4 <- visreg(mod1, "floor.dis", by="prop.dif", cond=list(dif.in.dis="0.7"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Dif in Dis = 0.7")
+p4$layers[[3]] <- NULL
+multiplot(p1, p2, p3, p4, cols=4)
 
-## Most interesting interactions will be plotted here
-p1 <- visreg(mod, "dif.in.dis", by="floor.dif", cond=list(floor.dis="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
-p2 <- visreg(mod, "dif.in.dis", by="floor.dif", cond=list(floor.dis="1.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
-#p3 <- visreg(mod, "dif.in.dis", by="floor.dif", cond=list(floor.dis="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.75, 1)) + scale_color_brewer(palette="Set1")
-multiplot(p1, p2, cols = 2)
+## floor.dis:prop.dif:samp.size
+p1 <- visreg(mod1, "floor.dis", by="prop.dif", cond=list(samp.size="200"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Samp size = 200")
+p1$layers[[3]] <- NULL
+p2 <- visreg(mod1, "floor.dis", by="prop.dif", cond=list(samp.size="1000"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1") + ggtitle("Samp size = 1000")
+p2$layers[[3]] <- NULL
+multiplot(p1, p2, cols=2)
 
-p1 <- visreg(mod, "dif.in.dif", by="floor.dis", cond=list(prop.dif="0.1"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2")
-p2 <- visreg(mod, "dif.in.dif", by="floor.dis", cond=list(prop.dif="0.3"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2")
-p3 <- visreg(mod, "dif.in.dif", by="floor.dis", cond=list(prop.dif="0.5"), overlay=T, gg=TRUE) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2")
-multiplot(p1, p2, p3, cols = 3)
+## floor.dif:prop.dif:dif.in.dis 
+p1 <- visreg(mod1, "floor.dif", by="prop.dif", cond=list(dif.in.dis="0"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2") + ggtitle("Dif in Dis = 0")
+p1$layers[[3]] <- NULL
+p2 <- visreg(mod1, "floor.dif", by="prop.dif", cond=list(dif.in.dis="0.3"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2") + ggtitle("Dif in Dis = 0.3")
+p2$layers[[3]] <- NULL
+p3 <- visreg(mod1, "floor.dif", by="prop.dif", cond=list(dif.in.dis="0.5"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2") + ggtitle("Dif in Dis = 0.5")
+p3$layers[[3]] <- NULL
+p4 <- visreg(mod1, "floor.dif", by="prop.dif", cond=list(dif.in.dis="0.7"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2") + ggtitle("Dif in Dis = 0.7")
+p4$layers[[3]] <- NULL
+multiplot(p1, p2 ,p3, p4, cols=4)
 
-p1 <- visreg(mod, "floor.dis", by="dif.in.dis", overlay=T, gg=TRUE) + theme_minimal()
+#floor.dif:floor.dis:samp.size
+p1 <- visreg(mod1, "floor.dif", by="floor.dis", cond=list(samp.size="200"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p1$layers[[3]] <- NULL
+p2 <- visreg(mod1, "floor.dif", by="floor.dis", cond=list(samp.size="1000"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set1")
+p2$layers[[3]] <- NULL
+multiplot(p1, p2, cols=2)
 
-
-p1 <- visreg(mod, "floor.dis", by="floor.dif", overlay=T, gg=TRUE) + theme_minimal()
-
-p1 <- visreg(mod, "floor.dis")
+## dif.in.dif:floor.dif:floor.dis
+p1 <- visreg(mod1, "dif.in.dif", by="floor.dis", cond=list(floor.dif="-1"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2") + ggtitle("Floor Dif = -1")
+p1$layers[[5]] <- NULL
+p2 <- visreg(mod1, "dif.in.dif", by="floor.dis", cond=list(floor.dif="1"), overlay=T, gg=T) + theme_minimal() + coord_cartesian(ylim=c(.7, 1)) + scale_color_brewer(palette="Set2") + ggtitle("Floor Dif = 1")
+p2$layers[[5]] <- NULL
+multiplot(p1, p2, cols=2)
 
 
 # ---- plot-nonuni-dif-results-wd-vs-nd -----------------------------------------------------------------
