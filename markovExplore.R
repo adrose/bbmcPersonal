@@ -19,6 +19,31 @@ trans.matrix <- function(X, prob=T)
 load("./fname.gz")
 ds_eegPred <- out.data[[9]]
 
+amp.vals <- read.csv("./data/eegData/ampVals.csv")
+# amp.vals$ERPset <- gsub(strSplitMatrixReturn(as.character(amp.vals$ERPset), "_")[,1], pattern = "#", replacement = '')
+# write.csv(amp.vals, file = "./data/eegData/ampVals.csv", quote = F, row.names = F)
+lat.vals <- read.csv("./data/eegData/latVals.csv")
+# lat.vals$ERPset <- gsub(strSplitMatrixReturn(as.character(lat.vals$ERPset), "_")[,1], pattern = "#", replacement = '')
+# write.csv(lat.vals, file = "./data/eegData/latVals.csv", quote = F, row.names = F)
+## NOw add these back into the eeg Pred values
+amp.vals <- tidyr::pivot_wider(amp.vals, id_cols="ERPset", names_from="binlabel", values_from="value") %>% 
+  mutate(record_id = as.character(ERPset)) %>% 
+  mutate(record_id = if_else(record_id %in% "117-115", "118-64", record_id)) %>%
+  melt(.) %>% 
+  mutate(cycle = substring(sapply(lapply(strsplit(as.character(variable), NULL), rev), paste, collapse=""), 1, 1)) %>%
+  mutate(variable = gsub('.{1}$', '', variable)) %>% 
+  select(-ERPset) %>% 
+  tidyr::pivot_wider(., id_cols=c(record_id, cycle), names_from=c("variable"), values_from=c(value))
+
+lat.vals <- tidyr::pivot_wider(lat.vals, id_cols="ERPset", names_from="binlabel", values_from="value") %>% 
+  mutate(record_id = as.character(ERPset)) %>% 
+  mutate(record_id = if_else(record_id %in% "117-115", "118-64", record_id)) %>%
+  melt(.) %>% 
+  mutate(cycle = substring(sapply(lapply(strsplit(as.character(variable), NULL), rev), paste, collapse=""), 1, 1)) %>%
+  mutate(variable = gsub('.{1}$', '', variable)) %>% 
+  select(-ERPset) %>% 
+  tidyr::pivot_wider(., id_cols=c(record_id, cycle), names_from=c("variable"), values_from=c(value))
+
 ## Identify the states
 mod.plot <- ds_eegPred[complete.cases(ds_eegPred$P2crymaxIDLatpost),]
 mod.plot <- mod.plot[!duplicated(mod.plot$record_id),]
