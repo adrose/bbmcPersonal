@@ -412,9 +412,16 @@ item.cov.explore <- lme4::glmer(value ~ (Gender + Race + Emotion)^2 + (1|record_
 visreg::visreg(item.cov.explore, "Gender", by="Emotion", overlay=F)
 visreg::visreg(item.cov.explore, "Race", by="Emotion", overlay=F)
 for.irt3.cv$raceAgree <- factor(for.irt3.cv$raceAgree)
-item.cov.explore2 <- lme4::glmer(value ~ (Gender + raceAgree + Emotion)^2 + (1|record_id), data=for.irt3.cv, family = binomial)
+item.cov.explore3 <- lme4::glmer(value ~ (Gender + raceAgree + Emotion)^2 + (1|record_id) + (1|variable), data=for.irt3.cv, family = binomial)
+item.cov.explore2 <- lme4::glmer(value ~ (Gender + raceAgree + Emotion)^2 + (1|record_id) , data=for.irt3.cv, family = binomial)
 visreg::visreg(item.cov.explore2, "Gender", by="raceAgree")
-#item.cov.explore <- glm(value ~ Gender + Race * raceAgree + variable, data=for.irt3.cv, family = binomial)
+item.cov.explore <- glm(value ~ Gender + Race * raceAgree + variable, data=for.irt3.cv, family = binomial)
+## Now spread the item cov race agree
+for.irt3.cv$raceAgree <- as.numeric(as.character(for.irt3.cv$raceAgree))
+tmp <- pivot_wider(for.irt3.cv, id_cols=c("record_id"), values_from=raceAgree, names_from = variable, values_fn = sum)
+colnames(tmp) <- make.names(colnames(tmp))
+## Now save this file
+write.csv(tmp, "raceAgreeForQuestion.csv", quote=F, row.names=F)
 
 ## Now explore variance across trials within a participant
 # First grab the individual ID values
@@ -601,6 +608,18 @@ lat.vals <- tidyr::pivot_wider(lat.vals, id_cols="ERPset", names_from="binlabel"
 
 multi.vals <- full_join(amp.vals, lat.vals, by=c("record_id", "cycle"), suffix=c("_Amp", "_Lat"))
 names(multi.vals) <- make.names(names(multi.vals))
+colnames(multi.vals) <- gsub(names(multi.vals), pattern = "X", replacement = "")
+colnames(multi.vals) <- gsub(colnames(multi.vals), pattern = "\\.", replacement = "", perl=F)
+
+## Now plot the relationships between 1 & 2
+multi.vals %>% pivot_wider(., id_cols=c("record_id"),names_from=cycle, values_from=contains(c("Amp"))) %>% 
+  ggpairs(. , columns = 2:ncol(.) , upper = list(continuous = wrap("cor", family="sans")))
+multi.vals %>% pivot_wider(., id_cols=c("record_id"),names_from=cycle, values_from=contains(c("Lat"))) %>% 
+  ggpairs(. , columns = 2:ncol(.) , upper = list(continuous = wrap("cor", family="sans")))
+multi.vals %>% pivot_wider(., id_cols=c("record_id"),names_from=cycle, values_from=contains(c("Lat" , "Amp"))) %>% 
+  ggpairs(. , columns = 2:ncol(.) , upper = list(continuous = wrap("cor", family="sans")))
+
+
 
 for.irt3 <- for.irt.mixed
 for.irt3$record_id <- for.irt2$V1
@@ -617,34 +636,37 @@ for.irt.mixed$cycle <- 1
 for.irt.mixed$cycle[for.irt.mixed$round>2] <- 2
 ## Now attach the multiple recording eeg data
 for.irt.mixed <- merge(for.irt.mixed, multi.vals, all=T)
+# NOw fix the correct indicies column names
+colnames(for.irt) <- make.names(colnames(for.irt))
+colnames(for.irt.mixed)[3:98] <- colnames(for.irt)[-c(1)]
 
 ## Write the files for the MIMIC models here
 ## These will be exported to a machine that can run MPlus -- my worktop
-cry.dat <- for.irt.mixed[,c(2:25)]
-cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "","P2crymaxCarepost","P2crymaxCareLatpost")])
+cry.dat <- for.irt.mixed[,c(3:26)]
+cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","P2crymaxCarepost","P2crymaxCareLatpost")])
 write.csv(cry.dat, "./data/forMIMICCry.csv", quote=F, row.names=F)
-hap.dat <- for.irt.mixed[,c(26:49)]
-hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2happymaxCarepost","P2happymaxCareLatpost")])
+hap.dat <- for.irt.mixed[,c(27:50)]
+hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count", "P2happymaxCarepost","P2happymaxCareLatpost")])
 write.csv(hap.dat, "./data/forMIMICHap.csv", quote=F, row.names=F)
-neu.dat <- for.irt.mixed[,c(50:73)]
-neu.dat <- cbind(neu.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2neutralmaxCarepost","P2neutralmaxCareLatpost")])
+neu.dat <- for.irt.mixed[,c(51:74)]
+neu.dat <- cbind(neu.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count", "P2neutralmaxCarepost","P2neutralmaxCareLatpost")])
 write.csv(neu.dat, "./data/forMIMICNeu.csv", quote=F, row.names=F)
-unh.dat <- for.irt.mixed[,c(74:97)]
-unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count", "P2unhappymaxCarepost","P2unhappymaxCareLatpost")])
+unh.dat <- for.irt.mixed[,c(75:98)]
+unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count", "P2unhappymaxCarepost","P2unhappymaxCareLatpost")])
 write.csv(unh.dat, "./data/forMIMICUnh.csv", quote=F, row.names=F)
 
 ## Now write the files for the mimic values with multiple eeg recordings
 cry.dat <- for.irt.mixed[,c(3:26)]
-cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count","X.Crying_Amp","X.Crying_Lat")])
+cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Crying_Amp","Crying_Lat")])
 write.csv(cry.dat, "./data/forMIMICCryMulti.csv", quote=F, row.names=F)
 hap.dat <- for.irt.mixed[,c(27:50)]
-hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count","X..Happy_Amp","X..Happy_Lat")])
+hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Happy_Amp","Happy_Lat")])
 write.csv(hap.dat, "./data/forMIMICHapMulti.csv", quote=F, row.names=F)
 neu.dat <- for.irt.mixed[,c(51:74)]
-neu.dat <- cbind(neu.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count","Neutral_Amp","Neutral_Lat")])
+neu.dat <- cbind(neu.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Neutral_Amp","Neutral_Lat")])
 write.csv(neu.dat, "./data/forMIMICNeuMulti.csv", quote=F, row.names=F)
 unh.dat <- for.irt.mixed[,c(75:98)]
-unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id", "dose_hv_visit_count","Unhappy_Amp","Unhappy_Lat")])
+unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Unhappy_Amp","Unhappy_Lat")])
 write.csv(unh.dat, "./data/forMIMICUnhMulti.csv", quote=F, row.names=F)
 
 
