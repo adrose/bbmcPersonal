@@ -317,11 +317,11 @@ for(i in 1:length(base.dif.vals)){
 all.plot.vals$subjMagnitude <- abs(all.plot.vals$subj.int)
 
 ## Now plot these
-all.plot.vals %>% ggplot(., aes(x=theta, y=probEndorse, color=subjMagnitude, group=s)) +
+all.plot.vals %>% ggplot(., aes(x=theta, y=probEndorse, color=subj.int, group=s)) +
   geom_line() +
   theme_bw() +
   facet_wrap(i~ e ) +
-  ggtitle("Unifrom DIF ICCs") +
+  ggtitle("uDIF ICCs") +
   ylab("Probability of Correct Response") +
   xlab("Theta")
 
@@ -373,11 +373,11 @@ for(i in 1:length(base.dif.vals)){
 all.plot.vals$subjMagnitude <- abs(all.plot.vals$subj.int)
 
 ## Now plot these
-all.plot.vals %>% ggplot(., aes(x=theta, y=probEndorse, color=subjMagnitude, group=s)) +
+all.plot.vals %>% ggplot(., aes(x=theta, y=probEndorse, color=subj.int, group=s)) +
   geom_line() +
   theme_bw() +
   facet_wrap(i ~ e ) +
-  ggtitle("Nonunifrom DIF ICCs") +
+  ggtitle("nuDIF ICCs") +
   ylab("Probability of Correct Response") +
   xlab("Theta")
 
