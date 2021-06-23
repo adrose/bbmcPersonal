@@ -17,6 +17,46 @@ library(mirt)
 library(utils)
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 
+# ---- declare-functions -----------------------------------------------------------------
+## Create a function where the response pattern is derived with unfirom DIF with the 
+## DIF being a function of a continous covaraite... not grou pdifferences
+retUnifromResponse <- function(true.theta=runif(1000), r=0, d.min= 0, d.max=.3, dis.val=1.5){
+  ### Find a random vector with the desired correlation to the true theta
+  n <- length(true.theta)
+  theta <- acos(r)
+  x1 <- true.theta
+  x2 <- rnorm(n, 1, 1)
+  X <- cbind(x1, x2)
+  Xctr <- scale(X, center=TRUE, scale=FALSE)
+  Id <- diag(n)
+  Q <- qr.Q(qr(Xctr,,1,drop=FALSE))
+  P <- tcrossprod(Q)
+  x2o <- (Id - P) %*% Xctr[ , 2]
+  Xc2  <- cbind(Xctr[ , 1], x2o)                # bind to matrix
+  Y    <- Xc2 %*% diag(1/sqrt(colSums(Xc2^2)))  # scale columns to length 1
+  
+  x <- Y[ , 2] + (1 / tan(theta)) * Y[ , 1]     # final new vector
+  cor.val <- cor(x1, x)
+  ## Now grab the estimated difficulty
+  est.vals <- lm(x1~x)$fitted.values
+  ## Now scale the values between the min and max difficulty
+  est.vals <- range01(est.vals)
+  est.vals <- scales::rescale(est.vals, to=c(d.min, d.max), from=c(0,1))
+  ### Now simulate a response pattern across all discrete values of this x vector
+  resp.vals <- sapply(1:n, function(x) psych::sim.irt(nvar=1, d = est.vals[x], n = 1, a=dis.val, theta = true.theta[x])$items)
+  ### Now return everything of interest
+  out.vals <- list(true.theta = true.theta, in.cor = r, out.cor = cor.val, out.dif = est.vals, out.resp = resp.vals)
+}
+
+# ---- test-continous-effects -----------------------------------------------------------------
+test.one <- retUnifromResponse(r = 0, d.min = -1, d.max = 1, dis.val = .3)
+plot(test.one$true.theta, test.one$out.resp)
+exp(coef(glm(test.one$out.resp ~ test.one$true.theta)))
+## Now sim a couple of other questions
+more.sim.dat <- psych::sim.irt(nvar=5,a = c(.3, .5, .7, .9, 1.2), d = c(-1, -.5, 0, .5, 1), theta = test.one$true.theta, n = length(test.one$true.theta))
+mod <- psych::irt.fa(x=as.matrix(cbind(more.sim.dat$items, test.one$out.resp)), nfactors = 1)
+
+
 # ---- set-parallel-env -----------------------------------------------------------------
 cl <- makeCluster(3)
 registerDoParallel(cl)
