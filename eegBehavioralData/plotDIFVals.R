@@ -324,7 +324,31 @@ all.plot.vals %>% ggplot(., aes(x=theta, y=probEndorse, color=subj.int, group=s)
   ggtitle("uDIF ICCs") +
   ylab("Probability of Correct Response") +
   xlab("Theta")
+## Now loop through each plot and return an individual png for each file so I can prep it for some vector art
+for(q in unique(all.plot.vals$i)){
+  tmp.plot <- all.plot.vals[which(all.plot.vals$i==q),] %>% ggplot(., aes(x=theta, y=probEndorse, color=subj.int, group=s)) +
+    geom_line(size=2) +
+    theme_bw() +
+    ylab("") +
+    xlab("") +
+    theme(legend.position = "none", text = element_text(size=32))
+  file.name <- paste("./paperImages/", unique(all.plot.vals[which(all.plot.vals$i==q),"e"]), "_", q, ".png", sep='')
+  png(filename = file.name)
+  print(tmp.plot)
+  dev.off()
+}
 
+## Now make a density plot of the interaction term
+x <- all.plot.vals$subj.int[which(all.plot.vals$i==q)]
+y <- density(x, n = 2^12, kernel = "triangular", adjust = 8)
+png("./paperImages/interactionHistogram.png")
+ggplot(data.frame(x = y$x, y = y$y), aes(x, y)) + geom_line() + 
+  geom_segment(aes(xend = x, yend = 0, colour = x)) +
+  xlab("Interaction Magnitude") +
+  ylab("Density") +
+  theme_bw() +
+  theme(legend.position = "none", text = element_text(size=32))
+dev.off()
 
 ##############################################################
 #### Work with nonunifrom DIF here
@@ -380,4 +404,16 @@ all.plot.vals %>% ggplot(., aes(x=theta, y=probEndorse, color=subj.int, group=s)
   ggtitle("nuDIF ICCs") +
   ylab("Probability of Correct Response") +
   xlab("Theta")
-
+## Now loop through each plot and return an individual png for each file so I can prep it for some vector art
+for(q in unique(all.plot.vals$i)){
+  tmp.plot <- all.plot.vals[which(all.plot.vals$i==q),] %>% ggplot(., aes(x=theta, y=probEndorse, color=subj.int, group=s)) +
+    geom_line(size=2) +
+    theme_bw() +
+    ylab("") +
+    xlab("") +
+    theme(legend.position = "none", text = element_text(size=32))
+  file.name <- paste("./paperImages/nonUni/", unique(all.plot.vals[which(all.plot.vals$i==q),"e"]), "_", q, ".png", sep='')
+  png(filename = file.name)
+  print(tmp.plot)
+  dev.off()
+}
