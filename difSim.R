@@ -20,7 +20,7 @@ source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 # ---- declare-functions -----------------------------------------------------------------
 ## Create a function where the response pattern is derived with unfirom DIF with the 
 ## DIF being a function of a continous covaraite... not grou pdifferences
-retUnifromResponse <- function(true.theta=runif(1000), r=0, d.min= 0, d.max=.3, dis.val=1.5){
+retUnifromResponse <- function(true.theta=runif(1000, min = -2, max = 2), r=0, d.min= 0, d.max=.3, dis.val=1.5){
   ### Find a random vector with the desired correlation to the true theta
   n <- length(true.theta)
   theta <- acos(r)
@@ -49,13 +49,17 @@ retUnifromResponse <- function(true.theta=runif(1000), r=0, d.min= 0, d.max=.3, 
 }
 
 # ---- test-continous-effects -----------------------------------------------------------------
-test.one <- retUnifromResponse(r = 0, d.min = -1, d.max = 1, dis.val = .3)
+test.one <- retUnifromResponse(r = .5, d.min = -2, d.max = 2, dis.val = 1)
 plot(test.one$true.theta, test.one$out.resp)
 exp(coef(glm(test.one$out.resp ~ test.one$true.theta)))
 ## Now sim a couple of other questions
 more.sim.dat <- psych::sim.irt(nvar=5,a = c(.3, .5, .7, .9, 1.2), d = c(-1, -.5, 0, .5, 1), theta = test.one$true.theta, n = length(test.one$true.theta))
-mod <- psych::irt.fa(x=as.matrix(cbind(more.sim.dat$items, test.one$out.resp)), nfactors = 1)
+mod.one <- psych::irt.fa(x=as.matrix(cbind(more.sim.dat$items, test.one$out.resp)), nfactors = 1)
+cor(scoreIrt(mod.one, as.matrix(cbind(more.sim.dat$items, test.one$out.resp)))$theta1, test.one$true.theta)
 
+sim.dat <- psych::sim.irt(nvar=20,d = runif(20, -2, 2), a = runif(20, .8, 2), theta = test.one$true.theta, n = length(test.one$true.theta))
+mod.sim <- psych::irt.fa(x=sim.dat$items, nfactors = 1)
+cor(scoreIrt(mod.sim, sim.dat$items)$theta1, test.one$true.theta)
 
 # ---- set-parallel-env -----------------------------------------------------------------
 cl <- makeCluster(3)
