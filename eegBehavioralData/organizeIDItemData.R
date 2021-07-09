@@ -5,14 +5,14 @@ rm(list=ls())
 source("~/adroseHelperScripts/R/afgrHelpFunc.R")
 install_load("reshape2", "progress", "mirt", "psych", "ggplot2", "polycor", "corrplot", "ggalluvial", "GGally", "tidyverse")
 
-# ## Run the bash script to organize the files as desired
-# #system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIDItemData.sh")
-# 
-# ## Declare any functions
-# binary.flip <- function (x) {
-#   x * -1 + 1
-# }
-# 
+## Run the bash script to organize the files as desired
+system("/home/arosen/Documents/bbmcPersonal/eegBehavioralData/organizeIDItemData.sh")
+
+## Declare any functions
+binary.flip <- function (x) {
+  x * -1 + 1
+}
+
 # # ## This is going to have to be done in a loop
 # all.files.pic <- system("ls ~/Documents/bbmcPersonal/eegBehavioralData/careFace/idMod/pic*", intern = T)
 # ## Now go through this in a loop and merge em
@@ -249,7 +249,7 @@ install_load("reshape2", "progress", "mirt", "psych", "ggplot2", "polycor", "cor
 # ## Now I can check to see if both the reaction time & response are NA --
 # ## If they are not then I can go back and add the response depending on missing response values
 # ## Thats going to be for a later time though
-# 
+# #.rt
 # ## Make the variables factors so we can compute the alpha for them
 # all.out.wide2[,7] <- factor(all.out.wide2[,7], c("crying", "unhappy", "neutral", "happy"))
 # all.out.wide2[,8] <- factor(all.out.wide2[,8], c("crying", "unhappy", "neutral", "happy"))
@@ -431,16 +431,16 @@ for.irt3.cv$record_id <- for.irt$V1
 # Now grab the correct values within an individual across time
 # Start with overall
 for.irt3.cv$allCor <- rowSums(for.irt3.cv[,1:96], na.rm = T)
-for.irt3.cv$allPer <- for.irt3.cv$allCor / rowSums(!is.na(for.irt3.cv[,1:96]))
+#for.irt3.cv$allPer <- for.irt3.cv$allCor / rowSums(!is.na(for.irt3.cv[,1:96]))
 # Now do the emotion specific values
 for.irt3.cv$cryCor <- rowSums(for.irt3.cv[,1:24], na.rm = T)
-for.irt3.cv$cryPer <- for.irt3.cv$cryCor / rowSums(!is.na(for.irt3.cv[,1:24]))
+#for.irt3.cv$cryPer <- for.irt3.cv$cryCor / rowSums(!is.na(for.irt3.cv[,1:24]))
 for.irt3.cv$hapCor <- rowSums(for.irt3.cv[,25:48], na.rm = T)
-for.irt3.cv$hapPer <- for.irt3.cv$hapCor / rowSums(!is.na(for.irt3.cv[,25:48]))
+#for.irt3.cv$hapPer <- for.irt3.cv$hapCor / rowSums(!is.na(for.irt3.cv[,25:48]))
 for.irt3.cv$neuCor <- rowSums(for.irt3.cv[,49:72], na.rm = T)
-for.irt3.cv$neuPer <- for.irt3.cv$neuCor / rowSums(!is.na(for.irt3.cv[,49:72]))
+#for.irt3.cv$neuPer <- for.irt3.cv$neuCor / rowSums(!is.na(for.irt3.cv[,49:72]))
 for.irt3.cv$unhCor <- rowSums(for.irt3.cv[,73:96], na.rm = T)
-for.irt3.cv$unhPer <- for.irt3.cv$unhCor / rowSums(!is.na(for.irt3.cv[,73:96]))
+#for.irt3.cv$unhPer <- for.irt3.cv$unhCor / rowSums(!is.na(for.irt3.cv[,73:96]))
 
 # Now add a marker for the round each response pattern is associated with rounds go from 1--> 4
 for.irt3.cv$round <- 1
@@ -454,7 +454,7 @@ tmp.plot <- for.irt3.cv %>% ggplot(., aes(x=round, y=allPer, group=record_id)) +
   geom_point() +
   geom_line()
 ## Now do the same for each emotion
-for.irt3.cv.tmp <- for.irt3.cv[,c("record_id", "round", "cryPer", "hapPer", "neuPer", "unhPer")]
+for.irt3.cv.tmp <- for.irt3.cv[,c("record_id", "round", "cryCor", "hapCor", "neuCor", "unhCor")]
 for.irt3.cv.tmp <- melt(for.irt3.cv.tmp, id.vars = c("record_id", "round"))
 tmp.plot2 <- for.irt3.cv.tmp %>% ggplot(., aes(y=record_id, x=value, group=record_id, color=variable)) +
   geom_point() +
@@ -464,6 +464,14 @@ tmp.plot2 <- for.irt3.cv.tmp %>% ggplot(., aes(y=record_id, x=value, group=recor
 
 ## Now try to model practice effects?
 mod.practice <- lmerTest::lmer(value ~ variable + factor(round) + (1|record_id), data=for.irt3.cv.tmp)
+## Now do a growth model
+all.dat <- merge(for.irt3.cv.tmp, ds_eegPred, all.x = T)
+mod.practice.cry <- lmerTest::lmer(value ~   P2crymaxIDfront * P2crymaxIDLatfront + ( round |record_id), data=all.dat[which(all.dat$variable=="cryCor"),])
+mod.practice.hap <- lmerTest::lmer(value ~   P2happymaxIDfront * P2happymaxIDLatfront + ( round |record_id), data=all.dat[which(all.dat$variable=="hapCor"),])
+mod.practice.unh <- lmerTest::lmer(value ~   P2unhappymaxIDfront * P2unhappymaxIDLatfront + ( round |record_id), data=all.dat[which(all.dat$variable=="unhCor"),])
+mod.practice.neu <- lmerTest::lmer(value ~   P2neutralmaxIDfront * P2neutralmaxIDLatfront + ( round |record_id), data=all.dat[which(all.dat$variable=="neuCor"),])
+
+
 
 ## Now fit 2 1-factor models using the high intensity and low intensity data seperate
 mod.11 <- mirt(for.irt3[,1:48], 1, SE=T, itemtype='2PL')
@@ -620,22 +628,22 @@ multi.vals %>% pivot_wider(., id_cols=c("record_id"),names_from=cycle, values_fr
   ggpairs(. , columns = 2:ncol(.) , upper = list(continuous = wrap("cor", family="sans")))
 
 
-
 for.irt3 <- for.irt.mixed
 for.irt3$record_id <- for.irt2$V1
 # Fix broken ID values
 for.irt3 <- for.irt3 %>% mutate(record_id = as.character(record_id)) %>% mutate(record_id = if_else(record_id %in% "117-115", "118-64", record_id))
 ## Add factor scores to the for.irt3 data
 for.irt3$mod2Crying <- fscores(mod.2.crying)
-for.irt.mixed <- merge(for.irt3, ds_eegPred, all=F)
+for.irt.mixed <- merge(for.irt3, ds_eegPred, all.x = T)
 
 ## Now add a round and a cycle variable so I can merge the eeg data w/ multiple recordings
 for.irt.mixed <- for.irt.mixed %>% group_by(record_id) %>% mutate(round=1:n())
 ## Now do cycle
 for.irt.mixed$cycle <- 1
 for.irt.mixed$cycle[for.irt.mixed$round>2] <- 2
+
 ## Now attach the multiple recording eeg data
-for.irt.mixed <- merge(for.irt.mixed, multi.vals, all=T)
+for.irt.mixed <- merge(for.irt.mixed, multi.vals, all.x =T, by=c("record_id","cycle"))
 # NOw fix the correct indicies column names
 colnames(for.irt) <- make.names(colnames(for.irt))
 colnames(for.irt.mixed)[3:98] <- colnames(for.irt)[-c(1)]
@@ -656,17 +664,18 @@ unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_vi
 write.csv(unh.dat, "./data/forMIMICUnh.csv", quote=F, row.names=F)
 
 ## Now write the files for the mimic values with multiple eeg recordings
+#names(for.irt.mixed) <- gsub("\\s","",names(for.irt.mixed))
 cry.dat <- for.irt.mixed[,c(3:26)]
-cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Crying_Amp","Crying_Lat")])
+cry.dat <- cbind(cry.dat, for.irt.mixed[,c("record_id","Crying_Amp","Crying_Lat")])
 write.csv(cry.dat, "./data/forMIMICCryMulti.csv", quote=F, row.names=F)
 hap.dat <- for.irt.mixed[,c(27:50)]
-hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Happy_Amp","Happy_Lat")])
+hap.dat <- cbind(hap.dat, for.irt.mixed[,c("record_id","Happy_Amp","Happy_Lat")])
 write.csv(hap.dat, "./data/forMIMICHapMulti.csv", quote=F, row.names=F)
 neu.dat <- for.irt.mixed[,c(51:74)]
-neu.dat <- cbind(neu.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Neutral_Amp","Neutral_Lat")])
+neu.dat <- cbind(neu.dat, for.irt.mixed[,c("record_id", "Neutral_Amp","Neutral_Lat")])
 write.csv(neu.dat, "./data/forMIMICNeuMulti.csv", quote=F, row.names=F)
 unh.dat <- for.irt.mixed[,c(75:98)]
-unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id", "ace_score", "dose_hv_visit_count","Unhappy_Amp","Unhappy_Lat")])
+unh.dat <- cbind(unh.dat, for.irt.mixed[,c("record_id","Unhappy_Amp","Unhappy_Lat")])
 write.csv(unh.dat, "./data/forMIMICUnhMulti.csv", quote=F, row.names=F)
 
 
